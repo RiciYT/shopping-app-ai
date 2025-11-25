@@ -6,6 +6,7 @@ import {
   Alert,
   ScrollView,
   TouchableOpacity,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -420,10 +421,17 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 16,
     elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.08)',
+      },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 2,
+      },
+    }),
   },
   statNumber: {
     fontWeight: '700',
@@ -449,10 +457,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 8,
     elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.05)',
+      },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+    }),
   },
   frequentItemDot: {
     width: 8,

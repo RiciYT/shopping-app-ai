@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Animated } from 'react-native';
+import { View, StyleSheet, Animated, Platform } from 'react-native';
 import { Card, Text, Checkbox, useTheme, TouchableRipple } from 'react-native-paper';
 import { Swipeable, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
@@ -176,10 +176,17 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.08)',
+      },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.08,
+        shadowRadius: 2,
+      },
+    }),
   },
   checkedContainer: {
     opacity: 0.7,
