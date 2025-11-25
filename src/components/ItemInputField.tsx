@@ -16,6 +16,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { getProductSuggestions, parseItemInput, getCategoryColor, ParsedItemInput } from '../utils';
 import { Product } from '../types';
 
+// Delay before hiding suggestions to allow time for selection
+const BLUR_DELAY_MS = 150;
+
 interface ItemInputFieldProps {
   onAddItem: (item: ParsedItemInput) => void;
   recentItems?: Product[];
@@ -116,7 +119,7 @@ export function ItemInputField({
           value={inputValue}
           onChangeText={setInputValue}
           onFocus={() => setIsFocused(true)}
-          onBlur={() => setTimeout(() => setIsFocused(false), 150)}
+          onBlur={() => setTimeout(() => setIsFocused(false), BLUR_DELAY_MS)}
           onSubmitEditing={handleSubmit}
           returnKeyType="done"
           blurOnSubmit={false}

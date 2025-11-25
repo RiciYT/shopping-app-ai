@@ -34,11 +34,17 @@ export function RecentlyUsedSection({
 
   // Sort by most recently used and limit visible items
   const sortedItems = useMemo(() => {
-    return [...items].sort((a, b) => {
-      const aTime = a.lastUsedAt ? new Date(a.lastUsedAt).getTime() : new Date(a.updatedAt).getTime();
-      const bTime = b.lastUsedAt ? new Date(b.lastUsedAt).getTime() : new Date(b.updatedAt).getTime();
-      return bTime - aTime;
-    });
+    // Pre-calculate timestamps for efficient sorting
+    const itemsWithTimestamp = items.map(item => ({
+      item,
+      timestamp: item.lastUsedAt 
+        ? new Date(item.lastUsedAt).getTime() 
+        : new Date(item.updatedAt).getTime()
+    }));
+    
+    return itemsWithTimestamp
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .map(({ item }) => item);
   }, [items]);
 
   const visibleItems = sortedItems.slice(0, maxVisibleItems);

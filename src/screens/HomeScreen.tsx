@@ -35,6 +35,9 @@ type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const STORES: StoreName[] = ['Custom', 'Lidl', 'Coop', 'Migros'];
 
+// Default product values for suggestions
+const DEFAULT_QUANTITY = 1;
+
 export function HomeScreen() {
   const navigation = useNavigation<HomeNavigationProp>();
   const { state, addList, deleteList, dispatch, addProduct, updateProduct, getCurrentList, toggleProduct, deleteProduct, completeList } = useApp();
@@ -50,6 +53,7 @@ export function HomeScreen() {
 
   const currentList = getCurrentList();
   const activeLists = state.shoppingLists.filter(list => !list.isArchived);
+  const defaultUnit = state.settings.defaultUnit;
 
   // Get recently used items based on lastUsedAt and timesUsed
   const recentlyUsedItems = useMemo((): Product[] => {
@@ -104,8 +108,8 @@ export function HomeScreen() {
             id: `suggestion-${key}`,
             name: product.name,
             category: product.category,
-            quantity: 1,
-            unit: 'pcs',
+            quantity: DEFAULT_QUANTITY,
+            unit: defaultUnit,
             isChecked: false,
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -130,7 +134,7 @@ export function HomeScreen() {
       })
       .slice(0, 8)
       .map(({ timesUsedCount, lastUsedTimestamp, ...product }) => product as Product);
-  }, [state.shoppingLists]);
+  }, [state.shoppingLists, defaultUnit]);
 
   const { uncheckedItems, checkedItems } = useMemo(() => {
     if (!currentList) return { uncheckedItems: [], checkedItems: [] };

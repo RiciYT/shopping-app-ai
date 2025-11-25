@@ -97,7 +97,15 @@ export function EditItemBottomSheet({
     setQuantity(newValue.toString());
   };
 
-  const currencySymbol = currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : currency === 'CHF' ? 'CHF ' : '$';
+  // Currency symbol mapping
+  const CURRENCY_SYMBOLS: Record<string, string> = {
+    USD: '$',
+    EUR: '€',
+    GBP: '£',
+    CHF: 'CHF ',
+    JPY: '¥',
+  };
+  const currencySymbol = CURRENCY_SYMBOLS[currency] || '$';
 
   if (!product) return null;
 
