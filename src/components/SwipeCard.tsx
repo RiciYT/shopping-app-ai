@@ -19,7 +19,9 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
 const CARD_WIDTH = SCREEN_WIDTH - 40;
 // Card height takes ~70-80% of available space (accounting for header, progress, and bottom buttons)
-const CARD_HEIGHT = Math.min(SCREEN_HEIGHT * 0.55, 420);
+const CARD_HEIGHT_RATIO = 0.55;
+const MAX_CARD_HEIGHT = 420;
+const CARD_HEIGHT = Math.min(SCREEN_HEIGHT * CARD_HEIGHT_RATIO, MAX_CARD_HEIGHT);
 
 interface SwipeCardProps {
   product: Product;
@@ -183,7 +185,7 @@ export function SwipeCard({
         {product.notes && (
           <View style={[styles.notesContainer, { backgroundColor: theme.colors.surfaceVariant }]}>
             <Ionicons name="document-text-outline" size={16} color={theme.colors.onSurfaceVariant} />
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, flex: 1 }} numberOfLines={2}>
+            <Text variant="bodyMedium" style={[styles.notesText, { color: theme.colors.onSurfaceVariant }]} numberOfLines={2}>
               {product.notes}
             </Text>
           </View>
@@ -294,6 +296,9 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     gap: 10,
     maxWidth: '100%',
+  },
+  notesText: {
+    flex: 1,
   },
   indicator: {
     position: 'absolute',

@@ -505,8 +505,8 @@ export function HomeScreen() {
           borderless
         >
           <View style={styles.swipeModeButtonContent}>
-            <Ionicons name="cart-outline" size={20} color="#fff" />
-            <Text variant="labelLarge" style={styles.swipeModeButtonText}>
+            <Ionicons name="cart-outline" size={20} color={theme.colors.onPrimary} />
+            <Text variant="labelLarge" style={[styles.swipeModeButtonText, { color: theme.colors.onPrimary }]}>
               Start Swipe Mode
             </Text>
           </View>
@@ -759,7 +759,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   swipeModeButtonText: {
-    color: '#fff',
     fontWeight: '600',
   },
   searchBar: {

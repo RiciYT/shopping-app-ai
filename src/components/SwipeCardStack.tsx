@@ -161,10 +161,10 @@ export function SwipeCardStack({
           onPress={handleDonePress}
           activeOpacity={0.7}
         >
-          <Text variant="titleMedium" style={[styles.actionButtonText, { color: '#fff' }]}>
+          <Text variant="titleMedium" style={[styles.actionButtonText, { color: theme.colors.onPrimary }]}>
             Done
           </Text>
-          <Ionicons name="chevron-forward" size={24} color="#fff" />
+          <Ionicons name="chevron-forward" size={24} color={theme.colors.onPrimary} />
         </TouchableOpacity>
       </View>
     </View>
