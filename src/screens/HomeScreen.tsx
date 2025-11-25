@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -11,7 +11,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Text,
-  Card,
   FAB,
   Portal,
   Modal,
@@ -20,56 +19,138 @@ import {
   IconButton,
   useTheme,
   TouchableRipple,
+  Menu,
+  ProgressBar,
+  Chip,
+  Searchbar,
 } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
-import { ListCard, BudgetViewPlaceholder, MultiUserSyncPlaceholder } from '../components';
-import { ShoppingList, RootStackParamList } from '../types';
-import { formatPrice, calculateTotalPrice, COMMON_PRODUCTS, getCategoryColor } from '../utils';
+import { ProductItem, AddProductModal, BudgetViewPlaceholder, MultiUserSyncPlaceholder } from '../components';
+import { ShoppingList, Product, RootStackParamList } from '../types';
+import { formatPrice, calculateTotalPrice, groupByCategoryWithStoreOrder, StoreName, getCategoryColor, getCategoryIcon, COMMON_PRODUCTS } from '../utils';
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
+const STORES: StoreName[] = ['Custom', 'Lidl', 'Coop', 'Migros'];
+
 export function HomeScreen() {
   const navigation = useNavigation<HomeNavigationProp>();
-  const { state, addList, deleteList, dispatch, addProduct, getCurrentList } = useApp();
+  const { state, addList, deleteList, dispatch, addProduct, getCurrentList, toggleProduct, deleteProduct, completeList } = useApp();
   const [showNewListModal, setShowNewListModal] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [showPlaceholder, setShowPlaceholder] = useState<'budget' | 'multiuser' | null>(null);
+  const [showListMenu, setShowListMenu] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showChecked, setShowChecked] = useState(true);
+  const [selectedStore, setSelectedStore] = useState<StoreName>('Custom');
+  const [showStoreMenu, setShowStoreMenu] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const theme = useTheme();
 
+  const currentList = getCurrentList();
   const activeLists = state.shoppingLists.filter(list => !list.isArchived);
 
-  // Get frequently bought items from history
-  const frequentItems = useMemo(() => {
-    const itemCounts: Record<string, { name: string; category: string; count: number }> = {};
+  // Get recently used items based on lastUsedAt and timesUsed
+  const recentlyUsedItems = useMemo(() => {
+    const itemMap: Record<string, { name: string; category: string; lastUsedAt?: Date; timesUsed: number }> = {};
     
-    // Count items from all completed lists
-    state.shoppingLists.filter(list => list.isArchived).forEach(list => {
+    // Collect all items from all lists (including archived) with usage stats
+    state.shoppingLists.forEach(list => {
       list.items.forEach(item => {
         const key = item.name.toLowerCase();
-        if (!itemCounts[key]) {
-          itemCounts[key] = { name: item.name, category: item.category, count: 0 };
+        if (!itemMap[key]) {
+          itemMap[key] = { 
+            name: item.name, 
+            category: item.category, 
+            lastUsedAt: item.lastUsedAt, 
+            timesUsed: item.timesUsed || 0 
+          };
+        } else {
+          // Update with most recent usage
+          if (item.lastUsedAt && (!itemMap[key].lastUsedAt || item.lastUsedAt > itemMap[key].lastUsedAt)) {
+            itemMap[key].lastUsedAt = item.lastUsedAt;
+          }
+          itemMap[key].timesUsed = Math.max(itemMap[key].timesUsed, item.timesUsed || 0);
         }
-        itemCounts[key].count += 1;
       });
     });
 
-    // Also include some common products if no history
-    if (Object.keys(itemCounts).length < 6) {
-      COMMON_PRODUCTS.slice(0, 6).forEach(product => {
+    // Also include items from completed/archived lists to count usage
+    state.shoppingLists.filter(list => list.isArchived).forEach(list => {
+      list.items.forEach(item => {
+        const key = item.name.toLowerCase();
+        const completedDate = list.completedAt || list.updatedAt;
+        if (!itemMap[key]) {
+          itemMap[key] = { 
+            name: item.name, 
+            category: item.category, 
+            lastUsedAt: completedDate, 
+            timesUsed: 1 
+          };
+        } else {
+          itemMap[key].timesUsed += 1;
+          // Update lastUsedAt if this completion is more recent
+          if (completedDate && (!itemMap[key].lastUsedAt || completedDate > itemMap[key].lastUsedAt)) {
+            itemMap[key].lastUsedAt = completedDate;
+          }
+        }
+      });
+    });
+
+    // If no history, show common products
+    if (Object.keys(itemMap).length < 6) {
+      COMMON_PRODUCTS.slice(0, 8).forEach(product => {
         const key = product.name.toLowerCase();
-        if (!itemCounts[key]) {
-          itemCounts[key] = { ...product, count: 0 };
+        if (!itemMap[key]) {
+          itemMap[key] = { ...product, timesUsed: 0 };
         }
       });
     }
 
-    return Object.values(itemCounts)
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 6);
+    // Sort by lastUsedAt (most recent) and timesUsed (most used)
+    // Pre-compute timestamps for efficient sorting
+    const itemsWithTimestamp = Object.values(itemMap).map(item => ({
+      ...item,
+      lastUsedTimestamp: item.lastUsedAt ? new Date(item.lastUsedAt).getTime() : 0
+    }));
+    
+    return itemsWithTimestamp
+      .sort((a, b) => {
+        // First by timesUsed
+        if (b.timesUsed !== a.timesUsed) return b.timesUsed - a.timesUsed;
+        // Then by lastUsedAt (using pre-computed timestamps)
+        return b.lastUsedTimestamp - a.lastUsedTimestamp;
+      })
+      .slice(0, 8);
   }, [state.shoppingLists]);
+
+  const { uncheckedItems, checkedItems } = useMemo(() => {
+    if (!currentList) return { uncheckedItems: [], checkedItems: [] };
+    
+    let items = currentList.items;
+    
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      items = items.filter(item => 
+        item.name.toLowerCase().includes(query) ||
+        item.category.toLowerCase().includes(query)
+      );
+    }
+    
+    return {
+      uncheckedItems: items.filter(item => !item.isChecked),
+      checkedItems: items.filter(item => item.isChecked),
+    };
+  }, [currentList, searchQuery]);
+
+  const groupedUnchecked = useMemo(
+    () => groupByCategoryWithStoreOrder(uncheckedItems, selectedStore),
+    [uncheckedItems, selectedStore]
+  );
 
   const handleCreateList = () => {
     if (!newListName.trim()) return;
@@ -77,12 +158,11 @@ export function HomeScreen() {
     setNewListName('');
     setShowNewListModal(false);
     dispatch({ type: 'SET_CURRENT_LIST', payload: list.id });
-    navigation.navigate('MainTabs');
   };
 
   const handleSelectList = (list: ShoppingList) => {
     dispatch({ type: 'SET_CURRENT_LIST', payload: list.id });
-    navigation.navigate('MainTabs');
+    setShowListMenu(false);
   };
 
   const handleDeleteList = (listId: string) => {
@@ -97,7 +177,6 @@ export function HomeScreen() {
   };
 
   const handleQuickAdd = (item: { name: string; category: string }) => {
-    const currentList = getCurrentList();
     if (currentList) {
       addProduct(currentList.id, {
         name: item.name,
@@ -105,9 +184,10 @@ export function HomeScreen() {
         quantity: 1,
         unit: 'pcs',
         isChecked: false,
+        lastUsedAt: new Date(),
+        timesUsed: 1,
       });
     } else if (activeLists.length > 0) {
-      // If no current list, use the first active list
       const firstList = activeLists[0];
       dispatch({ type: 'SET_CURRENT_LIST', payload: firstList.id });
       addProduct(firstList.id, {
@@ -116,9 +196,10 @@ export function HomeScreen() {
         quantity: 1,
         unit: 'pcs',
         isChecked: false,
+        lastUsedAt: new Date(),
+        timesUsed: 1,
       });
     } else {
-      // Create a new list and add the item
       const newList = addList('Shopping List');
       addProduct(newList.id, {
         name: item.name,
@@ -126,11 +207,101 @@ export function HomeScreen() {
         quantity: 1,
         unit: 'pcs',
         isChecked: false,
+        lastUsedAt: new Date(),
+        timesUsed: 1,
       });
     }
   };
 
-  const totalItems = activeLists.reduce((sum, list) => sum + list.items.length, 0);
+  const handleAddProduct = (productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (currentList) {
+      addProduct(currentList.id, {
+        ...productData,
+        lastUsedAt: new Date(),
+        timesUsed: 1,
+      });
+    }
+  };
+
+  const handleToggleProduct = useCallback((productId: string) => {
+    if (currentList) {
+      toggleProduct(currentList.id, productId);
+    }
+  }, [currentList, toggleProduct]);
+
+  const handleDeleteProduct = useCallback((productId: string) => {
+    if (currentList) {
+      Alert.alert(
+        'Delete Item',
+        'Are you sure you want to remove this item?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: () => deleteProduct(currentList.id, productId),
+          },
+        ]
+      );
+    }
+  }, [currentList, deleteProduct]);
+
+  const handleProductPress = useCallback((product: Product) => {
+    if (currentList) {
+      navigation.navigate('ProductDetails', { product, listId: currentList.id });
+    }
+  }, [currentList, navigation]);
+
+  const handleCompleteList = () => {
+    if (currentList) {
+      Alert.alert(
+        'Complete Shopping',
+        'Mark this shopping list as complete? It will be archived.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Complete',
+            onPress: () => completeList(currentList.id),
+          },
+        ]
+      );
+    }
+  };
+
+  const totalPrice = currentList ? calculateTotalPrice(currentList.items) : 0;
+  const progress = currentList && currentList.items.length > 0
+    ? checkedItems.length / currentList.items.length
+    : 0;
+
+  const renderCategorySection = ([category, items]: [string, Product[]]) => (
+    <View key={category} style={styles.categorySection}>
+      <View style={styles.categoryHeader}>
+        <View style={[styles.categoryIconContainer, { backgroundColor: getCategoryColor(category) + '20' }]}>
+          <Ionicons
+            name={getCategoryIcon(category) as keyof typeof Ionicons.glyphMap}
+            size={16}
+            color={getCategoryColor(category)}
+          />
+        </View>
+        <Text variant="labelLarge" style={[styles.categoryTitle, { color: theme.colors.onSurfaceVariant }]}>
+          {category}
+        </Text>
+        <Text variant="labelSmall" style={{ color: theme.colors.outline }}>
+          {items.length} {items.length === 1 ? 'item' : 'items'}
+        </Text>
+      </View>
+      {items.map(item => (
+        <ProductItem
+          key={item.id}
+          product={item}
+          currency={state.settings.currency}
+          onToggle={() => handleToggleProduct(item.id)}
+          onPress={() => handleProductPress(item)}
+          onDelete={() => handleDeleteProduct(item.id)}
+        />
+      ))}
+    </View>
+  );
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
@@ -155,132 +326,264 @@ export function HomeScreen() {
     </View>
   );
 
+  const renderListContent = () => {
+    if (!currentList) return renderEmptyState();
+
+    if (currentList.items.length === 0) {
+      return (
+        <View style={styles.emptyListState}>
+          <View style={[styles.emptyListIconContainer, { backgroundColor: theme.colors.surfaceVariant }]}>
+            <Ionicons name="basket-outline" size={40} color={theme.colors.outline} />
+          </View>
+          <Text variant="titleMedium" style={[styles.emptyListTitle, { color: theme.colors.onSurface }]}>
+            Your List is Empty
+          </Text>
+          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>
+            Tap the + button to add your first item
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <FlatList
+        data={groupedUnchecked}
+        keyExtractor={([category]) => category}
+        renderItem={({ item }) => renderCategorySection(item)}
+        ListFooterComponent={
+          checkedItems.length > 0 ? (
+            <View style={styles.checkedSection}>
+              <TouchableRipple
+                style={styles.checkedHeader}
+                onPress={() => setShowChecked(!showChecked)}
+              >
+                <View style={styles.checkedHeaderContent}>
+                  <View style={styles.checkedHeaderLeft}>
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={18}
+                      color={theme.colors.primary}
+                    />
+                    <Text variant="labelLarge" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 8 }}>
+                      Completed
+                    </Text>
+                    <Chip 
+                      compact 
+                      style={[styles.checkedCount, { backgroundColor: theme.colors.primaryContainer }]}
+                      textStyle={{ fontSize: 12, color: theme.colors.primary }}
+                    >
+                      {checkedItems.length}
+                    </Chip>
+                  </View>
+                  <Ionicons
+                    name={showChecked ? 'chevron-up' : 'chevron-down'}
+                    size={20}
+                    color={theme.colors.onSurfaceVariant}
+                  />
+                </View>
+              </TouchableRipple>
+              {showChecked &&
+                checkedItems.map(item => (
+                  <ProductItem
+                    key={item.id}
+                    product={item}
+                    currency={state.settings.currency}
+                    onToggle={() => handleToggleProduct(item.id)}
+                    onPress={() => handleProductPress(item)}
+                    onDelete={() => handleDeleteProduct(item.id)}
+                  />
+                ))}
+            </View>
+          ) : null
+        }
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+      />
+    );
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
-      <ScrollView 
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <View>
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-              Welcome back
-            </Text>
-            <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onSurface }]}>
-              Shopping Lists
-            </Text>
-          </View>
-          <View style={styles.headerActions}>
-            <IconButton
-              icon="account-group-outline"
-              iconColor={theme.colors.onSurfaceVariant}
-              size={24}
-              onPress={() => setShowPlaceholder('multiuser')}
-              style={styles.headerButton}
-            />
-            <IconButton
-              icon="wallet-outline"
-              iconColor={theme.colors.onSurfaceVariant}
-              size={24}
-              onPress={() => setShowPlaceholder('budget')}
-              style={styles.headerButton}
-            />
-          </View>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+            {currentList ? 'Current List' : 'Welcome'}
+          </Text>
+          <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onSurface }]} numberOfLines={1}>
+            {currentList ? currentList.name : 'Shopping Lists'}
+          </Text>
         </View>
+        <View style={styles.headerActions}>
+          {/* List Menu Button */}
+          <Menu
+            visible={showListMenu}
+            onDismiss={() => setShowListMenu(false)}
+            anchor={
+              <IconButton
+                icon="menu"
+                iconColor={theme.colors.onSurfaceVariant}
+                size={24}
+                onPress={() => setShowListMenu(true)}
+                style={styles.headerButton}
+              />
+            }
+            contentStyle={styles.menuContent}
+          >
+            <Menu.Item
+              onPress={() => {
+                setShowListMenu(false);
+                setShowNewListModal(true);
+              }}
+              title="Create New List"
+              leadingIcon="plus"
+            />
+            {activeLists.length > 0 && (
+              <>
+                <View style={styles.menuDivider} />
+                <Text variant="labelSmall" style={[styles.menuSectionTitle, { color: theme.colors.onSurfaceVariant }]}>
+                  Switch to:
+                </Text>
+                {activeLists.map(list => (
+                  <Menu.Item
+                    key={list.id}
+                    onPress={() => handleSelectList(list)}
+                    title={list.name}
+                    leadingIcon={list.id === state.currentListId ? 'check' : 'cart-outline'}
+                  />
+                ))}
+              </>
+            )}
+          </Menu>
+          {currentList && (
+            <IconButton
+              icon="check-circle-outline"
+              iconColor={theme.colors.primary}
+              size={24}
+              onPress={handleCompleteList}
+              disabled={currentList.items.length === 0}
+            />
+          )}
+        </View>
+      </View>
 
-        {/* Primary Action - Create List */}
-        <TouchableRipple
-          style={[styles.createListCard, { backgroundColor: theme.colors.primary }]}
-          onPress={() => setShowNewListModal(true)}
-          borderless
-        >
-          <View style={styles.createListContent}>
-            <View style={styles.createListIcon}>
-              <Ionicons name="add-circle" size={32} color="#fff" />
-            </View>
-            <View style={styles.createListText}>
-              <Text variant="titleMedium" style={styles.createListTitle}>
-                Create New List
-              </Text>
-              <Text variant="bodySmall" style={styles.createListSubtitle}>
-                Start a new shopping list
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color="rgba(255,255,255,0.7)" />
-          </View>
-        </TouchableRipple>
-
-        {/* Quick Stats - Simplified */}
-        {activeLists.length > 0 && (
-          <View style={styles.statsRow}>
-            <View style={[styles.statCard, { backgroundColor: theme.colors.surface }]}>
-              <Text variant="headlineSmall" style={[styles.statNumber, { color: theme.colors.primary }]}>
-                {activeLists.length}
-              </Text>
-              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                Active Lists
-              </Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: theme.colors.surface }]}>
-              <Text variant="headlineSmall" style={[styles.statNumber, { color: theme.colors.tertiary }]}>
-                {totalItems}
-              </Text>
-              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                Items
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* Frequent Items */}
-        {activeLists.length > 0 && frequentItems.length > 0 && (
-          <View style={styles.frequentSection}>
-            <Text variant="titleSmall" style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
-              QUICK ADD
+      {/* Progress Bar (when list is active) */}
+      {currentList && currentList.items.length > 0 && (
+        <View style={styles.progressContainer}>
+          <View style={styles.progressHeader}>
+            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+              {currentList.items.length} items • {formatPrice(totalPrice, state.settings.currency)}
             </Text>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.frequentItemsScroll}
-            >
-              {frequentItems.map((item, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[styles.frequentItem, { backgroundColor: theme.colors.surface }]}
-                  onPress={() => handleQuickAdd(item)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.frequentItemDot, { backgroundColor: getCategoryColor(item.category) }]} />
-                  <Text variant="labelMedium" numberOfLines={1} style={{ color: theme.colors.onSurface }}>
-                    {item.name}
+            <Text variant="labelMedium" style={{ color: theme.colors.primary, fontWeight: '600' }}>
+              {Math.round(progress * 100)}%
+            </Text>
+          </View>
+          <ProgressBar
+            progress={progress}
+            color={theme.colors.primary}
+            style={[styles.progressBar, { backgroundColor: theme.colors.surfaceVariant }]}
+          />
+        </View>
+      )}
+
+      {/* Search Bar */}
+      {currentList && currentList.items.length > 0 && (
+        <Searchbar
+          placeholder="Search items..."
+          onChangeText={setSearchQuery}
+          value={searchQuery}
+          style={[styles.searchBar, { backgroundColor: theme.colors.surfaceVariant }]}
+          inputStyle={styles.searchInput}
+          iconColor={theme.colors.onSurfaceVariant}
+        />
+      )}
+
+      {/* Recently Used Section */}
+      {currentList && recentlyUsedItems.length > 0 && (
+        <View style={styles.recentlyUsedSection}>
+          <Text variant="titleSmall" style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
+            RECENTLY USED
+          </Text>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.recentlyUsedScroll}
+          >
+            {recentlyUsedItems.map((item, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[styles.recentItem, { backgroundColor: theme.colors.surface }]}
+                onPress={() => handleQuickAdd(item)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.recentItemDot, { backgroundColor: getCategoryColor(item.category) }]} />
+                <Text variant="labelMedium" numberOfLines={1} style={{ color: theme.colors.onSurface }}>
+                  {item.name}
+                </Text>
+                <Ionicons name="add" size={16} color={theme.colors.primary} />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Store Sort Button (when list has items) */}
+      {currentList && currentList.items.length > 0 && (
+        <View style={styles.storeMenuContainer}>
+          <Menu
+            visible={showStoreMenu}
+            onDismiss={() => setShowStoreMenu(false)}
+            anchor={
+              <TouchableRipple
+                style={[styles.storeButton, { backgroundColor: theme.colors.surfaceVariant }]}
+                onPress={() => setShowStoreMenu(true)}
+                borderless
+              >
+                <View style={styles.storeButtonContent}>
+                  <Ionicons name="storefront-outline" size={16} color={theme.colors.onSurfaceVariant} />
+                  <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                    {selectedStore}
                   </Text>
-                  <Ionicons name="add" size={16} color={theme.colors.primary} />
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Lists Section */}
-        {activeLists.length > 0 && (
-          <View style={styles.listsSection}>
-            <Text variant="titleSmall" style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
-              YOUR LISTS
-            </Text>
-            {activeLists.map(list => (
-              <ListCard
-                key={list.id}
-                list={list}
-                onPress={() => handleSelectList(list)}
-                onLongPress={() => handleDeleteList(list.id)}
+                  <Ionicons name="chevron-down" size={14} color={theme.colors.onSurfaceVariant} />
+                </View>
+              </TouchableRipple>
+            }
+          >
+            {STORES.map(store => (
+              <Menu.Item
+                key={store}
+                onPress={() => {
+                  setSelectedStore(store);
+                  setShowStoreMenu(false);
+                }}
+                title={store === 'Custom' ? 'Default Order' : store}
+                leadingIcon={selectedStore === store ? 'check' : undefined}
               />
             ))}
-          </View>
-        )}
+          </Menu>
+        </View>
+      )}
 
-        {activeLists.length === 0 && renderEmptyState()}
-      </ScrollView>
+      {/* Main Content */}
+      {renderListContent()}
+
+      {/* FAB for adding products */}
+      {currentList && (
+        <FAB
+          icon="plus"
+          style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+          color="#fff"
+          onPress={() => setShowAddModal(true)}
+        />
+      )}
+
+      {/* Add Product Modal */}
+      <AddProductModal
+        visible={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onAdd={handleAddProduct}
+        defaultUnit={state.settings.defaultUnit}
+      />
 
       {/* New List Modal */}
       <Portal>
@@ -365,79 +668,66 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  scrollView: {
-    flex: 1,
-  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 12,
+  },
+  headerLeft: {
+    flex: 1,
+    marginRight: 12,
   },
   title: {
     fontWeight: '700',
   },
   headerActions: {
     flexDirection: 'row',
+    alignItems: 'center',
   },
   headerButton: {
     margin: 0,
   },
-  createListCard: {
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderRadius: 20,
-    overflow: 'hidden',
+  menuContent: {
+    marginTop: 40,
   },
-  createListContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
+  menuDivider: {
+    height: 1,
+    backgroundColor: '#e0e0e0',
+    marginVertical: 8,
   },
-  createListIcon: {
-    marginRight: 16,
+  menuSectionTitle: {
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    fontSize: 11,
+    letterSpacing: 0.5,
   },
-  createListText: {
-    flex: 1,
-  },
-  createListTitle: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  createListSubtitle: {
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: 2,
-  },
-  statsRow: {
-    flexDirection: 'row',
+  progressContainer: {
     paddingHorizontal: 20,
-    gap: 12,
-    marginBottom: 20,
+    marginBottom: 12,
   },
-  statCard: {
-    flex: 1,
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 16,
-    borderRadius: 16,
-    elevation: 1,
-    ...Platform.select({
-      web: {
-        boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.08)',
-      },
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.08,
-        shadowRadius: 2,
-      },
-    }),
+    marginBottom: 8,
   },
-  statNumber: {
-    fontWeight: '700',
+  progressBar: {
+    height: 6,
+    borderRadius: 3,
   },
-  frequentSection: {
-    marginBottom: 24,
+  searchBar: {
+    marginHorizontal: 20,
+    marginBottom: 12,
+    borderRadius: 12,
+    elevation: 0,
+  },
+  searchInput: {
+    fontSize: 14,
+  },
+  recentlyUsedSection: {
+    marginBottom: 16,
   },
   sectionTitle: {
     paddingHorizontal: 20,
@@ -445,11 +735,11 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     fontWeight: '600',
   },
-  frequentItemsScroll: {
+  recentlyUsedScroll: {
     paddingHorizontal: 20,
     gap: 10,
   },
-  frequentItem: {
+  recentItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
@@ -469,12 +759,70 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  frequentItemDot: {
+  recentItemDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
   },
-  listsSection: {
+  storeMenuContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  storeButton: {
+    borderRadius: 10,
+    overflow: 'hidden',
+    alignSelf: 'flex-start',
+  },
+  storeButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 6,
+  },
+  categorySection: {
+    marginTop: 8,
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    gap: 10,
+  },
+  categoryIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryTitle: {
+    flex: 1,
+    fontWeight: '600',
+  },
+  checkedSection: {
+    marginTop: 16,
+    paddingTop: 8,
+  },
+  checkedHeader: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  checkedHeaderContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  checkedHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkedCount: {
+    marginLeft: 8,
+    height: 24,
+  },
+  listContent: {
     paddingBottom: 100,
   },
   emptyState: {
@@ -508,6 +856,42 @@ const styles = StyleSheet.create({
   emptyStateButtonContent: {
     paddingVertical: 8,
     paddingHorizontal: 16,
+  },
+  emptyListState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyListIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  emptyListTitle: {
+    marginBottom: 8,
+    fontWeight: '600',
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    borderRadius: 16,
+    elevation: 4,
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
+      },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+    }),
   },
   modalContent: {
     margin: 20,

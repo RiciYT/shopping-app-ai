@@ -10,6 +10,8 @@ export interface Product {
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
+  lastUsedAt?: Date;
+  timesUsed?: number;
 }
 
 // Shopping list type
@@ -78,8 +80,6 @@ export interface SharedList {
 // Navigation types
 export type RootTabParamList = {
   Home: undefined;
-  ShoppingList: { listId?: string };
-  History: undefined;
   Settings: undefined;
 };
 
