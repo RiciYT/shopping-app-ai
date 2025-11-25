@@ -497,6 +497,22 @@ export function HomeScreen() {
         </View>
       )}
 
+      {/* Start Swipe Mode Button */}
+      {currentList && uncheckedItems.length > 0 && (
+        <TouchableRipple
+          style={[styles.swipeModeButton, { backgroundColor: theme.colors.primary }]}
+          onPress={() => navigation.navigate('SwipeMode')}
+          borderless
+        >
+          <View style={styles.swipeModeButtonContent}>
+            <Ionicons name="cart-outline" size={20} color="#fff" />
+            <Text variant="labelLarge" style={styles.swipeModeButtonText}>
+              Start Swipe Mode
+            </Text>
+          </View>
+        </TouchableRipple>
+      )}
+
       {/* Search Bar */}
       {currentList && currentList.items.length > 0 && (
         <Searchbar
@@ -727,6 +743,24 @@ const styles = StyleSheet.create({
   progressBar: {
     height: 6,
     borderRadius: 3,
+  },
+  swipeModeButton: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  swipeModeButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    gap: 10,
+  },
+  swipeModeButtonText: {
+    color: '#fff',
+    fontWeight: '600',
   },
   searchBar: {
     marginHorizontal: 20,

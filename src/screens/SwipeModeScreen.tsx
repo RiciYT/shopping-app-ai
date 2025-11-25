@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback } from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text, IconButton, Button, useTheme } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,8 +15,8 @@ type SwipeModeNavigationProp = NativeStackNavigationProp<RootStackParamList>;
  * SwipeModeScreen - A dedicated full-screen view for processing shopping list items via swipe gestures.
  * 
  * This screen shows only unchecked items from the currently active list as swipeable cards.
- * - Swipe right: marks the item as completed/checked in global state.
- * - Swipe left: skips the item (moves to next card without marking).
+ * - Swipe right (or tap Done): marks the item as completed/checked in global state.
+ * - Swipe left (or tap Skip): skips the item (moves to next card without marking).
  * 
  * All state changes are persisted through the AppContext which handles storage automatically.
  */
@@ -120,20 +120,21 @@ export function SwipeModeScreen() {
         </View>
         <View style={styles.emptyContainer}>
           <View style={[styles.emptyIconContainer, { backgroundColor: theme.colors.primaryContainer }]}>
-            <Ionicons name="checkmark-circle" size={64} color={theme.colors.primary} />
+            <Ionicons name="checkmark-circle" size={80} color={theme.colors.primary} />
           </View>
-          <Text variant="headlineSmall" style={[styles.emptyTitle, { color: theme.colors.onSurface }]}>
-            All Items Done!
+          <Text variant="headlineMedium" style={[styles.emptyTitle, { color: theme.colors.onSurface }]}>
+            All Items Completed!
           </Text>
           <Text variant="bodyLarge" style={[styles.emptySubtitle, { color: theme.colors.onSurfaceVariant }]}>
             {currentList.items.length === 0
               ? 'Your list is empty. Add some items first!'
-              : "You've completed all items in this list"}
+              : "Great job! You've completed all items in this list"}
           </Text>
           <Button
             mode="contained"
             onPress={handleGoBack}
             style={styles.backButton}
+            contentStyle={styles.buttonContent}
             icon="arrow-left"
           >
             Back to List
@@ -143,6 +144,7 @@ export function SwipeModeScreen() {
               mode="outlined"
               onPress={handleCompleteList}
               style={styles.completeButton}
+              contentStyle={styles.buttonContent}
               icon="check-circle-outline"
             >
               Complete Shopping
@@ -170,16 +172,15 @@ export function SwipeModeScreen() {
         <View style={styles.headerSpacer} />
       </View>
 
-      {/* Main card stack area */}
-      <View style={styles.cardStackContainer}>
-        <SwipeCardStack
-          items={uncheckedItems}
-          currency={state.settings.currency}
-          onSwipeRight={handleSwipeRight}
-          onSwipeLeft={handleSwipeLeft}
-          onComplete={handleCompleteList}
-        />
-      </View>
+      {/* Main card stack area with bottom actions */}
+      <SwipeCardStack
+        items={uncheckedItems}
+        currency={state.settings.currency}
+        onSwipeRight={handleSwipeRight}
+        onSwipeLeft={handleSwipeLeft}
+        onComplete={handleCompleteList}
+        onBackToList={handleGoBack}
+      />
     </SafeAreaView>
   );
 }
@@ -205,9 +206,6 @@ const styles = StyleSheet.create({
   headerSpacer: {
     width: 48, // Same width as IconButton to center the title
   },
-  cardStackContainer: {
-    flex: 1,
-  },
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
@@ -215,30 +213,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   emptyIconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
+    marginBottom: 28,
   },
   emptyTitle: {
-    fontWeight: '600',
+    fontWeight: '700',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   emptySubtitle: {
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: 36,
     lineHeight: 24,
   },
   backButton: {
-    borderRadius: 12,
+    borderRadius: 14,
     marginBottom: 12,
-    minWidth: 200,
+    minWidth: 220,
+  },
+  buttonContent: {
+    paddingVertical: 6,
   },
   completeButton: {
-    borderRadius: 12,
-    minWidth: 200,
+    borderRadius: 14,
+    minWidth: 220,
   },
 });
