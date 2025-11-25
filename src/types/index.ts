@@ -7,11 +7,13 @@ export interface Product {
   unit: string;
   isChecked: boolean;
   price?: number;
+  store?: string;
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
   lastUsedAt?: Date;
   timesUsed?: number;
+  autofilled?: boolean; // True if category/quantity/unit were auto-detected
 }
 
 // Shopping list type

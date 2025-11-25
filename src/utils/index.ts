@@ -285,3 +285,79 @@ export const groupByCategoryWithStoreOrder = <T extends { category: string }>(
   
   return sorted;
 };
+
+// Parse item input to extract name, quantity, and unit
+export interface ParsedItemInput {
+  name: string;
+  quantity: number;
+  unit: string;
+  category: string;
+  autofilled: boolean;
+}
+
+// Unit patterns for parsing (regex patterns for common units)
+const UNIT_PATTERNS: Array<{ pattern: RegExp; unit: string }> = [
+  { pattern: /(\d+(?:\.\d+)?)\s*kg\b/i, unit: 'kg' },
+  { pattern: /(\d+(?:\.\d+)?)\s*g\b/i, unit: 'g' },
+  { pattern: /(\d+(?:\.\d+)?)\s*lb\b/i, unit: 'lb' },
+  { pattern: /(\d+(?:\.\d+)?)\s*oz\b/i, unit: 'oz' },
+  { pattern: /(\d+(?:\.\d+)?)\s*l\b/i, unit: 'L' },
+  { pattern: /(\d+(?:\.\d+)?)\s*ml\b/i, unit: 'ml' },
+  { pattern: /(\d+)\s*(?:pcs?|pieces?|x)\b/i, unit: 'pcs' },
+  { pattern: /(\d+)\s*(?:pack(?:s)?|pk)\b/i, unit: 'pack' },
+  { pattern: /(\d+)\s*(?:bottle(?:s)?)\b/i, unit: 'bottle' },
+  { pattern: /(\d+)\s*(?:can(?:s)?)\b/i, unit: 'can' },
+  { pattern: /(\d+)\s*(?:box(?:es)?)\b/i, unit: 'box' },
+  { pattern: /(\d+)\s*(?:bag(?:s)?)\b/i, unit: 'bag' },
+];
+
+export const parseItemInput = (input: string, defaultUnit: string = 'pcs'): ParsedItemInput => {
+  let text = input.trim();
+  let quantity = 1;
+  let unit = defaultUnit;
+  let autofilled = false;
+  
+  // Check for quantity + unit patterns (e.g., "milk 1l", "tomatoes 500g")
+  for (const { pattern, unit: matchedUnit } of UNIT_PATTERNS) {
+    const match = text.match(pattern);
+    if (match) {
+      quantity = parseFloat(match[1]);
+      unit = matchedUnit;
+      text = text.replace(pattern, '').trim();
+      autofilled = true;
+      break;
+    }
+  }
+  
+  // Check for leading quantity (e.g., "3 bananas")
+  if (!autofilled) {
+    const leadingNumberMatch = text.match(/^(\d+)\s+(.+)$/);
+    if (leadingNumberMatch) {
+      quantity = parseInt(leadingNumberMatch[1], 10);
+      text = leadingNumberMatch[2];
+      autofilled = true;
+    }
+    
+    // Check for trailing quantity (e.g., "bananas 3")
+    const trailingNumberMatch = text.match(/^(.+?)\s+(\d+)$/);
+    if (trailingNumberMatch && !autofilled) {
+      quantity = parseInt(trailingNumberMatch[2], 10);
+      text = trailingNumberMatch[1];
+      autofilled = true;
+    }
+  }
+  
+  // Clean up the name - capitalize first letter
+  const name = text.charAt(0).toUpperCase() + text.slice(1);
+  
+  // Auto-suggest category
+  const category = suggestCategory(name) || 'Other';
+  
+  return {
+    name,
+    quantity,
+    unit,
+    category,
+    autofilled,
+  };
+};
