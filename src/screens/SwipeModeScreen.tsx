@@ -34,12 +34,15 @@ export function SwipeModeScreen() {
     return currentList.items.filter(item => !item.isChecked);
   }, [currentList]);
 
+  // Store the current list ID to avoid unnecessary re-renders
+  const currentListId = currentList?.id;
+
   // Handler for swipe right - mark item as completed
   const handleSwipeRight = useCallback((productId: string) => {
-    if (currentList) {
-      toggleProduct(currentList.id, productId);
+    if (currentListId) {
+      toggleProduct(currentListId, productId);
     }
-  }, [currentList, toggleProduct]);
+  }, [currentListId, toggleProduct]);
 
   // Handler for swipe left - skip item (no state change, just move to next card)
   const handleSwipeLeft = useCallback((_productId: string) => {
@@ -49,11 +52,11 @@ export function SwipeModeScreen() {
 
   // Handler for completing the entire list
   const handleCompleteList = useCallback(() => {
-    if (currentList) {
-      completeList(currentList.id);
+    if (currentListId) {
+      completeList(currentListId);
       navigation.goBack();
     }
-  }, [currentList, completeList, navigation]);
+  }, [currentListId, completeList, navigation]);
 
   // Navigate back to the normal list view
   const handleGoBack = useCallback(() => {
