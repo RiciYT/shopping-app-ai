@@ -33,6 +33,9 @@
         "projectId": "a903f43f-8828-4c32-9cb2-4861e18a3b9a"
       }
     },
-    "owner": "riciyt"
+    "owner": "riciyt",
+    "plugins": [
+      "expo-font"
+    ]
   }
 }
