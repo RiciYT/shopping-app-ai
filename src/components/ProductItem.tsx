@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     height: 24,
   },
   categoryChipText: {
-    fontSize: 10,
+    fontSize: 11,
     marginVertical: 0,
     marginHorizontal: 4,
   },

@@ -3,6 +3,7 @@ import {
   View,
   StyleSheet,
   FlatList,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -51,7 +52,14 @@ export function HomeScreen() {
   };
 
   const handleDeleteList = (listId: string) => {
-    deleteList(listId);
+    Alert.alert(
+      'Delete List',
+      'Are you sure you want to delete this list?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => deleteList(listId) },
+      ]
+    );
   };
 
   const totalBudget = activeLists.reduce(
