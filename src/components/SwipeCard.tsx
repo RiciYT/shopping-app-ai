@@ -15,9 +15,13 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { Product } from '../types';
 import { formatPrice, getCategoryColor, getCategoryIcon } from '../utils';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
 const CARD_WIDTH = SCREEN_WIDTH - 40;
+// Card height takes ~70-80% of available space (accounting for header, progress, and bottom buttons)
+const CARD_HEIGHT_RATIO = 0.55;
+const MAX_CARD_HEIGHT = 420;
+const CARD_HEIGHT = Math.min(SCREEN_HEIGHT * CARD_HEIGHT_RATIO, MAX_CARD_HEIGHT);
 
 interface SwipeCardProps {
   product: Product;
@@ -131,78 +135,79 @@ export function SwipeCard({
         <>
           <Animated.View style={[styles.indicator, styles.rightIndicator, rightIndicatorStyle]}>
             <View style={[styles.indicatorContent, { backgroundColor: theme.colors.primary }]}>
-              <Ionicons name="checkmark" size={32} color="#fff" />
+              <Ionicons name="checkmark" size={28} color="#fff" />
               <Text style={styles.indicatorText}>Done</Text>
             </View>
           </Animated.View>
           <Animated.View style={[styles.indicator, styles.leftIndicator, leftIndicatorStyle]}>
             <View style={[styles.indicatorContent, { backgroundColor: theme.colors.outline }]}>
-              <Ionicons name="close" size={32} color="#fff" />
+              <Ionicons name="close" size={28} color="#fff" />
               <Text style={styles.indicatorText}>Skip</Text>
             </View>
           </Animated.View>
         </>
       )}
 
-      {/* Category Header */}
-      <View style={[styles.categoryHeader, { backgroundColor: categoryColor + '20' }]}>
-        <View style={[styles.categoryIcon, { backgroundColor: categoryColor }]}>
-          <Ionicons
-            name={categoryIcon as keyof typeof Ionicons.glyphMap}
-            size={24}
-            color="#fff"
-          />
-        </View>
-        <Text variant="labelLarge" style={[styles.categoryText, { color: categoryColor }]}>
+      {/* Category Badge at Top */}
+      <View style={[styles.categoryBadge, { backgroundColor: categoryColor }]}>
+        <Ionicons
+          name={categoryIcon as keyof typeof Ionicons.glyphMap}
+          size={18}
+          color="#fff"
+        />
+        <Text style={styles.categoryBadgeText}>
           {product.category}
         </Text>
       </View>
 
-      {/* Product Content */}
+      {/* Main Content - Centered Item Name and Details */}
       <View style={styles.content}>
-        <Text variant="headlineMedium" style={[styles.productName, { color: theme.colors.onSurface }]}>
+        <Text variant="displaySmall" style={[styles.productName, { color: theme.colors.onSurface }]} numberOfLines={2}>
           {product.name}
         </Text>
 
-        <View style={styles.detailsRow}>
-          <View style={styles.quantityBadge}>
-            <Text variant="titleMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-              {product.quantity} {product.unit}
+        {/* Quantity below name */}
+        <Text variant="titleLarge" style={[styles.quantityText, { color: theme.colors.onSurfaceVariant }]}>
+          {product.quantity} {product.unit}
+        </Text>
+
+        {/* Price if available */}
+        {product.price !== undefined && product.price > 0 && (
+          <View style={[styles.priceBadge, { backgroundColor: theme.colors.primaryContainer }]}>
+            <Ionicons name="pricetag" size={18} color={theme.colors.primary} />
+            <Text variant="titleMedium" style={[styles.priceText, { color: theme.colors.primary }]}>
+              {formatPrice(product.price * product.quantity, currency)}
             </Text>
           </View>
+        )}
 
-          {product.price !== undefined && product.price > 0 && (
-            <View style={[styles.priceBadge, { backgroundColor: theme.colors.primaryContainer }]}>
-              <Ionicons name="pricetag" size={16} color={theme.colors.primary} />
-              <Text variant="titleMedium" style={[styles.priceText, { color: theme.colors.primary }]}>
-                {formatPrice(product.price * product.quantity, currency)}
-              </Text>
-            </View>
-          )}
-        </View>
-
+        {/* Notes if available */}
         {product.notes && (
           <View style={[styles.notesContainer, { backgroundColor: theme.colors.surfaceVariant }]}>
             <Ionicons name="document-text-outline" size={16} color={theme.colors.onSurfaceVariant} />
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, flex: 1 }}>
+            <Text variant="bodyMedium" style={[styles.notesText, { color: theme.colors.onSurfaceVariant }]} numberOfLines={2}>
               {product.notes}
             </Text>
           </View>
         )}
       </View>
 
-      {/* Swipe Hint */}
+      {/* Swipe Hint at bottom */}
       {isFirst && (
-        <View style={styles.swipeHint}>
-          <Ionicons name="arrow-back" size={16} color={theme.colors.outline} />
-          <Text variant="labelSmall" style={{ color: theme.colors.outline }}>
-            Skip
-          </Text>
+        <View style={[styles.swipeHint, { borderTopColor: theme.colors.outlineVariant }]}>
+          <View style={styles.swipeHintItem}>
+            <Ionicons name="arrow-back" size={16} color={theme.colors.outline} />
+            <Text variant="labelSmall" style={{ color: theme.colors.outline }}>
+              Skip
+            </Text>
+          </View>
           <View style={styles.swipeHintDivider} />
-          <Text variant="labelSmall" style={{ color: theme.colors.outline }}>
-            Done
-          </Text>
-          <Ionicons name="arrow-forward" size={16} color={theme.colors.outline} />
+          <View style={styles.swipeHintItem}>
+            <Text variant="labelSmall" style={{ color: theme.colors.outline }}>
+              Done
+            </Text>
+            <Ionicons name="arrow-forward" size={16} color={theme.colors.outline} />
+          </View>
         </View>
       )}
     </Animated.View>
@@ -223,65 +228,63 @@ const styles = StyleSheet.create({
   card: {
     position: 'absolute',
     width: CARD_WIDTH,
-    minHeight: 280,
-    borderRadius: 24,
+    height: CARD_HEIGHT,
+    borderRadius: 28,
     overflow: 'hidden',
     ...Platform.select({
       web: {
-        boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.15)',
+        boxShadow: '0px 8px 30px rgba(0, 0, 0, 0.12)',
       },
       default: {
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 20,
-        elevation: 8,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.12,
+        shadowRadius: 30,
+        elevation: 10,
       },
     }),
   },
-  categoryHeader: {
+  categoryBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    gap: 12,
+    alignSelf: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    gap: 8,
+    marginTop: 24,
   },
-  categoryIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  categoryText: {
+  categoryBadgeText: {
+    color: '#fff',
     fontWeight: '600',
+    fontSize: 14,
     letterSpacing: 0.5,
   },
   content: {
     flex: 1,
-    padding: 20,
-    paddingTop: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
   },
   productName: {
     fontWeight: '700',
-    marginBottom: 16,
+    textAlign: 'center',
+    marginBottom: 12,
   },
-  detailsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 16,
-  },
-  quantityBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  quantityText: {
+    textAlign: 'center',
+    marginBottom: 20,
+    fontWeight: '500',
   },
   priceBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 14,
+    gap: 8,
+    marginBottom: 16,
   },
   priceText: {
     fontWeight: '600',
@@ -289,13 +292,17 @@ const styles = StyleSheet.create({
   notesContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    padding: 12,
-    borderRadius: 12,
-    gap: 8,
+    padding: 14,
+    borderRadius: 14,
+    gap: 10,
+    maxWidth: '100%',
+  },
+  notesText: {
+    flex: 1,
   },
   indicator: {
     position: 'absolute',
-    top: 20,
+    top: 24,
     zIndex: 10,
   },
   leftIndicator: {
@@ -307,9 +314,9 @@ const styles = StyleSheet.create({
   indicatorContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 12,
+    borderRadius: 14,
   },
   indicatorText: {
     color: '#fff',
@@ -320,10 +327,15 @@ const styles = StyleSheet.create({
   swipeHint: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 16,
-    paddingHorizontal: 20,
-    gap: 8,
+    paddingHorizontal: 24,
+    borderTopWidth: 1,
+  },
+  swipeHintItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   swipeHintDivider: {
     flex: 1,
