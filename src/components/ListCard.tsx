@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Card, Text, ProgressBar, useTheme } from 'react-native-paper';
+import { Text, ProgressBar, useTheme, TouchableRipple } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { ShoppingList } from '../types';
 import { formatDate } from '../utils';
@@ -18,44 +18,58 @@ export function ListCard({ list, onPress, onLongPress }: ListCardProps) {
   const progress = totalCount > 0 ? checkedCount / totalCount : 0;
 
   return (
-    <Card
-      style={[styles.container, { backgroundColor: theme.colors.elevation.level1 }]}
+    <TouchableRipple
+      style={[styles.container, { backgroundColor: theme.colors.surface }]}
       onPress={onPress}
       onLongPress={onLongPress}
-      mode="elevated"
+      borderless
     >
-      <Card.Content>
+      <View style={styles.content}>
         <View style={styles.header}>
           <View style={[styles.iconContainer, { backgroundColor: theme.colors.primaryContainer }]}>
             <Ionicons
               name={list.isArchived ? 'checkmark-circle' : 'cart'}
-              size={24}
-              color={list.isArchived ? theme.colors.primary : theme.colors.tertiary}
+              size={22}
+              color={theme.colors.primary}
             />
           </View>
           <View style={styles.headerText}>
-            <Text variant="titleMedium" numberOfLines={1} style={{ color: theme.colors.onSurface }}>
+            <Text variant="titleMedium" numberOfLines={1} style={[styles.listName, { color: theme.colors.onSurface }]}>
               {list.name}
             </Text>
             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
               {formatDate(list.updatedAt)}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color={theme.colors.outlineVariant} />
+          <View style={styles.chevronContainer}>
+            <Ionicons name="chevron-forward" size={20} color={theme.colors.outline} />
+          </View>
         </View>
 
         <View style={styles.stats}>
-          <ProgressBar
-            progress={progress}
-            color={theme.colors.primary}
-            style={[styles.progressBar, { backgroundColor: theme.colors.surfaceVariant }]}
-          />
-          <Text variant="labelSmall" style={[styles.statsText, { color: theme.colors.onSurfaceVariant }]}>
-            {checkedCount} / {totalCount} items
-          </Text>
+          <View style={styles.progressWrapper}>
+            <ProgressBar
+              progress={progress}
+              color={theme.colors.primary}
+              style={[styles.progressBar, { backgroundColor: theme.colors.surfaceVariant }]}
+            />
+          </View>
+          <View style={styles.statsInfo}>
+            <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+              {checkedCount} of {totalCount} items
+            </Text>
+            {progress > 0 && progress < 1 && (
+              <Text variant="labelSmall" style={{ color: theme.colors.primary, fontWeight: '600' }}>
+                {Math.round(progress * 100)}%
+              </Text>
+            )}
+            {progress === 1 && totalCount > 0 && (
+              <Ionicons name="checkmark-circle" size={16} color={theme.colors.primary} />
+            )}
+          </View>
         </View>
-      </Card.Content>
-    </Card>
+      </View>
+    </TouchableRipple>
   );
 }
 
@@ -64,6 +78,15 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginVertical: 6,
     borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+  },
+  content: {
+    padding: 16,
   },
   header: {
     flexDirection: 'row',
@@ -72,22 +95,34 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 14,
   },
   headerText: {
     flex: 1,
   },
+  listName: {
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  chevronContainer: {
+    marginLeft: 8,
+  },
   stats: {
-    marginTop: 12,
+    marginTop: 14,
+  },
+  progressWrapper: {
+    marginBottom: 8,
   },
   progressBar: {
     height: 4,
     borderRadius: 2,
   },
-  statsText: {
-    marginTop: 8,
+  statsInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
 });
