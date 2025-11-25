@@ -35,14 +35,6 @@ export interface PriceRecord {
   recordedAt: Date;
 }
 
-// Budget tracking for future use
-export interface Budget {
-  id: string;
-  month: string; // YYYY-MM format
-  limit: number;
-  spent: number;
-}
-
 // Settings type
 export interface Settings {
   darkMode: boolean;
@@ -61,20 +53,6 @@ export interface HistoryEntry {
   itemCount: number;
   totalPrice?: number;
   completedAt: Date;
-}
-
-// Multi-user sync placeholder types
-export interface User {
-  id: string;
-  email: string;
-  displayName: string;
-}
-
-export interface SharedList {
-  listId: string;
-  ownerId: string;
-  sharedWith: string[]; // user IDs
-  permissions: 'read' | 'write';
 }
 
 // Navigation types

@@ -28,7 +28,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
-import { ProductItem, AddProductModal, BudgetViewPlaceholder, MultiUserSyncPlaceholder } from '../components';
+import { ProductItem, AddProductModal } from '../components';
 import { ShoppingList, Product, RootStackParamList } from '../types';
 import { formatPrice, calculateTotalPrice, groupByCategoryWithStoreOrder, StoreName, getCategoryColor, getCategoryIcon, COMMON_PRODUCTS } from '../utils';
 
@@ -41,7 +41,6 @@ export function HomeScreen() {
   const { state, addList, deleteList, dispatch, addProduct, getCurrentList, toggleProduct, deleteProduct, completeList } = useApp();
   const [showNewListModal, setShowNewListModal] = useState(false);
   const [newListName, setNewListName] = useState('');
-  const [showPlaceholder, setShowPlaceholder] = useState<'budget' | 'multiuser' | null>(null);
   const [showListMenu, setShowListMenu] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showChecked, setShowChecked] = useState(true);
@@ -498,16 +497,36 @@ export function HomeScreen() {
       )}
 
       {/* Start Swipe Mode Button */}
-      {currentList && uncheckedItems.length > 0 && (
+      {currentList && currentList.items.length > 0 && (
         <TouchableRipple
-          style={[styles.swipeModeButton, { backgroundColor: theme.colors.primary }]}
-          onPress={() => navigation.navigate('SwipeMode')}
+          style={[
+            styles.swipeModeButton, 
+            { 
+              backgroundColor: uncheckedItems.length > 0 
+                ? theme.colors.primary 
+                : theme.colors.surfaceVariant 
+            }
+          ]}
+          onPress={uncheckedItems.length > 0 ? () => navigation.navigate('SwipeMode') : undefined}
+          disabled={uncheckedItems.length === 0}
           borderless
         >
           <View style={styles.swipeModeButtonContent}>
-            <Ionicons name="cart-outline" size={20} color={theme.colors.onPrimary} />
-            <Text variant="labelLarge" style={[styles.swipeModeButtonText, { color: theme.colors.onPrimary }]}>
-              Start Swipe Mode
+            <Ionicons 
+              name="cart-outline" 
+              size={20} 
+              color={uncheckedItems.length > 0 ? theme.colors.onPrimary : theme.colors.onSurfaceVariant} 
+            />
+            <Text 
+              variant="labelLarge" 
+              style={[
+                styles.swipeModeButtonText, 
+                { color: uncheckedItems.length > 0 ? theme.colors.onPrimary : theme.colors.onSurfaceVariant }
+              ]}
+            >
+              {uncheckedItems.length > 0 
+                ? `Start Swipe Mode (${uncheckedItems.length} items)` 
+                : 'Start Swipe Mode (0 items)'}
             </Text>
           </View>
         </TouchableRipple>
@@ -655,36 +674,6 @@ export function HomeScreen() {
               Create
             </Button>
           </View>
-        </Modal>
-
-        {/* Budget Placeholder Modal */}
-        <Modal
-          visible={showPlaceholder === 'budget'}
-          onDismiss={() => setShowPlaceholder(null)}
-          contentContainerStyle={[styles.placeholderModal, { backgroundColor: theme.colors.surface }]}
-        >
-          <IconButton
-            icon="close"
-            iconColor={theme.colors.onSurface}
-            style={styles.closeButton}
-            onPress={() => setShowPlaceholder(null)}
-          />
-          <BudgetViewPlaceholder />
-        </Modal>
-
-        {/* Multi-User Placeholder Modal */}
-        <Modal
-          visible={showPlaceholder === 'multiuser'}
-          onDismiss={() => setShowPlaceholder(null)}
-          contentContainerStyle={[styles.placeholderModal, { backgroundColor: theme.colors.surface }]}
-        >
-          <IconButton
-            icon="close"
-            iconColor={theme.colors.onSurface}
-            style={styles.closeButton}
-            onPress={() => setShowPlaceholder(null)}
-          />
-          <MultiUserSyncPlaceholder />
         </Modal>
       </Portal>
     </SafeAreaView>
@@ -959,16 +948,5 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     borderRadius: 12,
-  },
-  placeholderModal: {
-    margin: 20,
-    borderRadius: 24,
-    padding: 24,
-    paddingTop: 48,
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
   },
 });
