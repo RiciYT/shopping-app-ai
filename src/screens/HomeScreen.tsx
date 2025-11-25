@@ -28,7 +28,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
-import { ProductItem, AddProductModal, BudgetViewPlaceholder, MultiUserSyncPlaceholder, SwipeCardStack } from '../components';
+import { ProductItem, AddProductModal, BudgetViewPlaceholder, MultiUserSyncPlaceholder } from '../components';
 import { ShoppingList, Product, RootStackParamList } from '../types';
 import { formatPrice, calculateTotalPrice, groupByCategoryWithStoreOrder, StoreName, getCategoryColor, getCategoryIcon, COMMON_PRODUCTS } from '../utils';
 
@@ -48,7 +48,6 @@ export function HomeScreen() {
   const [selectedStore, setSelectedStore] = useState<StoreName>('Custom');
   const [showStoreMenu, setShowStoreMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'list' | 'swipe'>('list');
   const theme = useTheme();
 
   const currentList = getCurrentList();
@@ -269,19 +268,6 @@ export function HomeScreen() {
     }
   };
 
-  // Swipe card handlers
-  const handleSwipeRight = useCallback((productId: string) => {
-    // Mark item as completed (isChecked = true)
-    if (currentList) {
-      toggleProduct(currentList.id, productId);
-    }
-  }, [currentList, toggleProduct]);
-
-  const handleSwipeLeft = useCallback((_productId: string) => {
-    // Skip item - do nothing, just move to next card
-    // The card stack handles the visual removal
-  }, []);
-
   const totalPrice = currentList ? calculateTotalPrice(currentList.items) : 0;
   const progress = currentList && currentList.items.length > 0
     ? checkedItems.length / currentList.items.length
@@ -359,20 +345,7 @@ export function HomeScreen() {
       );
     }
 
-    // Swipe card mode
-    if (viewMode === 'swipe') {
-      return (
-        <SwipeCardStack
-          items={uncheckedItems}
-          currency={state.settings.currency}
-          onSwipeRight={handleSwipeRight}
-          onSwipeLeft={handleSwipeLeft}
-          onComplete={handleCompleteList}
-        />
-      );
-    }
-
-    // List mode (default)
+    // List view - shows items grouped by category
     return (
       <FlatList
         data={groupedUnchecked}
@@ -483,12 +456,13 @@ export function HomeScreen() {
               </>
             )}
           </Menu>
+          {/* Swipe Mode button - navigates to dedicated full-screen swipe view */}
           {currentList && currentList.items.length > 0 && uncheckedItems.length > 0 && (
             <IconButton
-              icon={viewMode === 'swipe' ? 'view-list' : 'cards'}
+              icon="cards"
               iconColor={theme.colors.onSurfaceVariant}
               size={24}
-              onPress={() => setViewMode(viewMode === 'list' ? 'swipe' : 'list')}
+              onPress={() => navigation.navigate('SwipeMode')}
               style={styles.headerButton}
             />
           )}
