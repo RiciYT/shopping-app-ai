@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -13,6 +13,8 @@ import {
   ProgressBar,
   useTheme,
   TouchableRipple,
+  Menu,
+  Chip,
 } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -20,15 +22,19 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
 import { ProductItem, AddProductModal } from '../components';
 import { Product, RootStackParamList } from '../types';
-import { formatPrice, calculateTotalPrice, groupByCategory } from '../utils';
+import { formatPrice, calculateTotalPrice, groupByCategoryWithStoreOrder, StoreName, getCategoryColor, getCategoryIcon } from '../utils';
 
 type ShoppingListNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+const STORES: StoreName[] = ['Custom', 'Lidl', 'Coop', 'Migros'];
 
 export function ShoppingListScreen() {
   const navigation = useNavigation<ShoppingListNavigationProp>();
   const { state, getCurrentList, addProduct, toggleProduct, deleteProduct, completeList } = useApp();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showChecked, setShowChecked] = useState(true);
+  const [selectedStore, setSelectedStore] = useState<StoreName>('Custom');
+  const [showStoreMenu, setShowStoreMenu] = useState(false);
   const theme = useTheme();
 
   const currentList = getCurrentList();
@@ -42,8 +48,8 @@ export function ShoppingListScreen() {
   }, [currentList]);
 
   const groupedUnchecked = useMemo(
-    () => groupByCategory(uncheckedItems),
-    [uncheckedItems]
+    () => groupByCategoryWithStoreOrder(uncheckedItems, selectedStore),
+    [uncheckedItems, selectedStore]
   );
 
   const handleAddProduct = (productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
@@ -52,13 +58,13 @@ export function ShoppingListScreen() {
     }
   };
 
-  const handleToggleProduct = (productId: string) => {
+  const handleToggleProduct = useCallback((productId: string) => {
     if (currentList) {
       toggleProduct(currentList.id, productId);
     }
-  };
+  }, [currentList, toggleProduct]);
 
-  const handleDeleteProduct = (productId: string) => {
+  const handleDeleteProduct = useCallback((productId: string) => {
     if (currentList) {
       Alert.alert(
         'Delete Item',
@@ -73,13 +79,13 @@ export function ShoppingListScreen() {
         ]
       );
     }
-  };
+  }, [currentList, deleteProduct]);
 
-  const handleProductPress = (product: Product) => {
+  const handleProductPress = useCallback((product: Product) => {
     if (currentList) {
       navigation.navigate('ProductDetails', { product, listId: currentList.id });
     }
-  };
+  }, [currentList, navigation]);
 
   const handleCompleteList = () => {
     if (currentList) {
@@ -101,7 +107,9 @@ export function ShoppingListScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
         <View style={styles.emptyState}>
-          <Ionicons name="list-outline" size={64} color={theme.colors.outlineVariant} />
+          <View style={[styles.emptyIconContainer, { backgroundColor: theme.colors.primaryContainer }]}>
+            <Ionicons name="list-outline" size={48} color={theme.colors.primary} />
+          </View>
           <Text variant="titleLarge" style={[styles.emptyStateTitle, { color: theme.colors.onSurface }]}>
             No List Selected
           </Text>
@@ -121,9 +129,21 @@ export function ShoppingListScreen() {
 
   const renderCategorySection = ([category, items]: [string, Product[]]) => (
     <View key={category} style={styles.categorySection}>
-      <Text variant="labelLarge" style={[styles.categoryTitle, { color: theme.colors.onSurfaceVariant }]}>
-        {category}
-      </Text>
+      <View style={styles.categoryHeader}>
+        <View style={[styles.categoryIconContainer, { backgroundColor: getCategoryColor(category) + '20' }]}>
+          <Ionicons
+            name={getCategoryIcon(category) as keyof typeof Ionicons.glyphMap}
+            size={16}
+            color={getCategoryColor(category)}
+          />
+        </View>
+        <Text variant="labelLarge" style={[styles.categoryTitle, { color: theme.colors.onSurfaceVariant }]}>
+          {category}
+        </Text>
+        <Text variant="labelSmall" style={{ color: theme.colors.outline }}>
+          {items.length} {items.length === 1 ? 'item' : 'items'}
+        </Text>
+      </View>
       {items.map(item => (
         <ProductItem
           key={item.id}
@@ -141,50 +161,90 @@ export function ShoppingListScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
+        <View style={styles.headerMain}>
           <Text variant="headlineSmall" numberOfLines={1} style={[styles.title, { color: theme.colors.onSurface }]}>
             {currentList.name}
           </Text>
-          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-            {currentList.items.length} items •{' '}
-            {formatPrice(totalPrice, state.settings.currency)}
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+            {currentList.items.length} items • {formatPrice(totalPrice, state.settings.currency)}
           </Text>
         </View>
-        <IconButton
-          icon="check-circle-outline"
-          iconColor={theme.colors.primary}
-          size={28}
-          onPress={handleCompleteList}
-          disabled={currentList.items.length === 0}
-        />
+        <View style={styles.headerActions}>
+          {/* Store Sorting Menu */}
+          <Menu
+            visible={showStoreMenu}
+            onDismiss={() => setShowStoreMenu(false)}
+            anchor={
+              <TouchableRipple
+                style={[styles.storeButton, { backgroundColor: theme.colors.surfaceVariant }]}
+                onPress={() => setShowStoreMenu(true)}
+                borderless
+              >
+                <View style={styles.storeButtonContent}>
+                  <Ionicons name="storefront-outline" size={16} color={theme.colors.onSurfaceVariant} />
+                  <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                    {selectedStore}
+                  </Text>
+                  <Ionicons name="chevron-down" size={14} color={theme.colors.onSurfaceVariant} />
+                </View>
+              </TouchableRipple>
+            }
+          >
+            {STORES.map(store => (
+              <Menu.Item
+                key={store}
+                onPress={() => {
+                  setSelectedStore(store);
+                  setShowStoreMenu(false);
+                }}
+                title={store === 'Custom' ? 'Default Order' : store}
+                leadingIcon={selectedStore === store ? 'check' : undefined}
+              />
+            ))}
+          </Menu>
+          <IconButton
+            icon="check-circle-outline"
+            iconColor={theme.colors.primary}
+            size={24}
+            onPress={handleCompleteList}
+            disabled={currentList.items.length === 0}
+          />
+        </View>
       </View>
 
       {/* Progress Bar */}
       <View style={styles.progressContainer}>
+        <View style={styles.progressHeader}>
+          <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+            Progress
+          </Text>
+          <Text variant="labelMedium" style={{ color: theme.colors.primary, fontWeight: '600' }}>
+            {Math.round(progress * 100)}%
+          </Text>
+        </View>
         <ProgressBar
           progress={progress}
           color={theme.colors.primary}
           style={[styles.progressBar, { backgroundColor: theme.colors.surfaceVariant }]}
         />
-        <Text variant="labelSmall" style={[styles.progressText, { color: theme.colors.onSurfaceVariant }]}>
-          {checkedItems.length} / {currentList.items.length} completed
-        </Text>
       </View>
 
       {/* Items List */}
       {currentList.items.length === 0 ? (
         <View style={styles.emptyListState}>
-          <Ionicons name="basket-outline" size={48} color={theme.colors.outlineVariant} />
+          <View style={[styles.emptyListIconContainer, { backgroundColor: theme.colors.surfaceVariant }]}>
+            <Ionicons name="basket-outline" size={40} color={theme.colors.outline} />
+          </View>
           <Text variant="titleMedium" style={[styles.emptyListTitle, { color: theme.colors.onSurface }]}>
-            List is Empty
+            Your List is Empty
           </Text>
-          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-            Tap the button below to add items
+          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>
+            Tap the + button to add your first item
           </Text>
         </View>
       ) : (
         <FlatList
-          data={Object.entries(groupedUnchecked)}
+          data={groupedUnchecked}
           keyExtractor={([category]) => category}
           renderItem={({ item }) => renderCategorySection(item)}
           ListFooterComponent={
@@ -195,9 +255,23 @@ export function ShoppingListScreen() {
                   onPress={() => setShowChecked(!showChecked)}
                 >
                   <View style={styles.checkedHeaderContent}>
-                    <Text variant="labelLarge" style={{ color: theme.colors.onSurfaceVariant }}>
-                      Checked ({checkedItems.length})
-                    </Text>
+                    <View style={styles.checkedHeaderLeft}>
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={18}
+                        color={theme.colors.primary}
+                      />
+                      <Text variant="labelLarge" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 8 }}>
+                        Completed
+                      </Text>
+                      <Chip 
+                        compact 
+                        style={[styles.checkedCount, { backgroundColor: theme.colors.primaryContainer }]}
+                        textStyle={{ fontSize: 12, color: theme.colors.primary }}
+                      >
+                        {checkedItems.length}
+                      </Chip>
+                    </View>
                     <Ionicons
                       name={showChecked ? 'chevron-up' : 'chevron-down'}
                       size={20}
@@ -227,8 +301,8 @@ export function ShoppingListScreen() {
       {/* FAB */}
       <FAB
         icon="plus"
-        style={[styles.fab, { backgroundColor: theme.colors.primaryContainer }]}
-        color={theme.colors.onPrimaryContainer}
+        style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+        color="#fff"
         onPress={() => setShowAddModal(true)}
       />
 
@@ -251,41 +325,76 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 12,
   },
+  headerMain: {
+    flex: 1,
+    marginRight: 12,
+  },
   title: {
-    fontWeight: 'bold',
-    maxWidth: 280,
+    fontWeight: '700',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  storeButton: {
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  storeButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 6,
   },
   progressContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 12,
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   progressBar: {
-    height: 8,
-    borderRadius: 4,
-  },
-  progressText: {
-    marginTop: 4,
+    height: 6,
+    borderRadius: 3,
   },
   listContent: {
     paddingBottom: 100,
   },
   categorySection: {
-    marginTop: 12,
+    marginTop: 8,
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    gap: 10,
+  },
+  categoryIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   categoryTitle: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    flex: 1,
+    fontWeight: '600',
   },
   checkedSection: {
     marginTop: 16,
+    paddingTop: 8,
   },
   checkedHeader: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 12,
   },
   checkedHeaderContent: {
@@ -293,31 +402,64 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  checkedHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkedCount: {
+    marginLeft: 8,
+    height: 24,
+  },
   emptyState: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: 40,
+  },
+  emptyIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
   },
   emptyStateTitle: {
     marginTop: 16,
+    fontWeight: '600',
   },
   emptyStateSubtitle: {
     textAlign: 'center',
     marginTop: 8,
+    lineHeight: 22,
   },
   emptyListState: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyListIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
   },
   emptyListTitle: {
-    marginTop: 12,
+    marginBottom: 8,
+    fontWeight: '600',
   },
   fab: {
     position: 'absolute',
-    right: 16,
-    bottom: 16,
+    right: 20,
+    bottom: 20,
     borderRadius: 16,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
 });

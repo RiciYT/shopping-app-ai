@@ -10,6 +10,7 @@ export const formatPrice = (price: number, currency: string = 'USD'): string => 
     EUR: '€',
     GBP: '£',
     JPY: '¥',
+    CHF: 'CHF ',
   };
   const symbol = currencySymbols[currency] || currency;
   return `${symbol}${price.toFixed(2)}`;
@@ -35,20 +36,30 @@ export const formatDateTime = (date: Date): string => {
   }).format(date);
 };
 
-// Common product categories
-export const PRODUCT_CATEGORIES = [
-  'Fruits & Vegetables',
-  'Dairy & Eggs',
-  'Meat & Seafood',
-  'Bakery',
-  'Pantry',
-  'Beverages',
-  'Snacks',
-  'Frozen',
-  'Household',
-  'Personal Care',
-  'Other',
+// Category with icon information (Ionicons names)
+export interface CategoryInfo {
+  name: string;
+  icon: string;
+  color: string;
+}
+
+// Common product categories with icons
+export const CATEGORY_INFO: CategoryInfo[] = [
+  { name: 'Fruits & Vegetables', icon: 'leaf-outline', color: '#4CAF50' },
+  { name: 'Dairy & Eggs', icon: 'egg-outline', color: '#FFC107' },
+  { name: 'Meat & Seafood', icon: 'fish-outline', color: '#F44336' },
+  { name: 'Bakery', icon: 'pizza-outline', color: '#795548' },
+  { name: 'Pantry', icon: 'cube-outline', color: '#FF9800' },
+  { name: 'Beverages', icon: 'beer-outline', color: '#2196F3' },
+  { name: 'Snacks', icon: 'fast-food-outline', color: '#9C27B0' },
+  { name: 'Frozen', icon: 'snow-outline', color: '#00BCD4' },
+  { name: 'Household', icon: 'home-outline', color: '#607D8B' },
+  { name: 'Personal Care', icon: 'body-outline', color: '#E91E63' },
+  { name: 'Other', icon: 'ellipsis-horizontal-outline', color: '#9E9E9E' },
 ];
+
+// Common product categories (names only for compatibility)
+export const PRODUCT_CATEGORIES = CATEGORY_INFO.map(c => c.name);
 
 // Common units
 export const PRODUCT_UNITS = [
@@ -68,20 +79,165 @@ export const PRODUCT_UNITS = [
 
 // Get category color
 export const getCategoryColor = (category: string): string => {
-  const colors: Record<string, string> = {
-    'Fruits & Vegetables': '#4CAF50',
-    'Dairy & Eggs': '#FFC107',
-    'Meat & Seafood': '#F44336',
-    'Bakery': '#795548',
-    'Pantry': '#FF9800',
-    'Beverages': '#2196F3',
-    'Snacks': '#9C27B0',
-    'Frozen': '#00BCD4',
-    'Household': '#607D8B',
-    'Personal Care': '#E91E63',
-    'Other': '#9E9E9E',
-  };
-  return colors[category] || colors['Other'];
+  const info = CATEGORY_INFO.find(c => c.name === category);
+  return info?.color || '#9E9E9E';
+};
+
+// Get category icon
+export const getCategoryIcon = (category: string): string => {
+  const info = CATEGORY_INFO.find(c => c.name === category);
+  return info?.icon || 'ellipsis-horizontal-outline';
+};
+
+// Common products for autocomplete with their typical categories
+export const COMMON_PRODUCTS: Array<{ name: string; category: string }> = [
+  // Fruits & Vegetables
+  { name: 'Apples', category: 'Fruits & Vegetables' },
+  { name: 'Bananas', category: 'Fruits & Vegetables' },
+  { name: 'Oranges', category: 'Fruits & Vegetables' },
+  { name: 'Tomatoes', category: 'Fruits & Vegetables' },
+  { name: 'Potatoes', category: 'Fruits & Vegetables' },
+  { name: 'Onions', category: 'Fruits & Vegetables' },
+  { name: 'Carrots', category: 'Fruits & Vegetables' },
+  { name: 'Lettuce', category: 'Fruits & Vegetables' },
+  { name: 'Cucumber', category: 'Fruits & Vegetables' },
+  { name: 'Broccoli', category: 'Fruits & Vegetables' },
+  { name: 'Spinach', category: 'Fruits & Vegetables' },
+  { name: 'Grapes', category: 'Fruits & Vegetables' },
+  { name: 'Lemons', category: 'Fruits & Vegetables' },
+  { name: 'Avocado', category: 'Fruits & Vegetables' },
+  // Dairy & Eggs
+  { name: 'Milk', category: 'Dairy & Eggs' },
+  { name: 'Eggs', category: 'Dairy & Eggs' },
+  { name: 'Cheese', category: 'Dairy & Eggs' },
+  { name: 'Butter', category: 'Dairy & Eggs' },
+  { name: 'Yogurt', category: 'Dairy & Eggs' },
+  { name: 'Cream', category: 'Dairy & Eggs' },
+  { name: 'Mozzarella', category: 'Dairy & Eggs' },
+  // Meat & Seafood
+  { name: 'Chicken Breast', category: 'Meat & Seafood' },
+  { name: 'Ground Beef', category: 'Meat & Seafood' },
+  { name: 'Salmon', category: 'Meat & Seafood' },
+  { name: 'Bacon', category: 'Meat & Seafood' },
+  { name: 'Shrimp', category: 'Meat & Seafood' },
+  { name: 'Pork Chops', category: 'Meat & Seafood' },
+  { name: 'Sausages', category: 'Meat & Seafood' },
+  // Bakery
+  { name: 'Bread', category: 'Bakery' },
+  { name: 'Croissants', category: 'Bakery' },
+  { name: 'Bagels', category: 'Bakery' },
+  { name: 'Tortillas', category: 'Bakery' },
+  { name: 'Baguette', category: 'Bakery' },
+  // Pantry
+  { name: 'Rice', category: 'Pantry' },
+  { name: 'Pasta', category: 'Pantry' },
+  { name: 'Olive Oil', category: 'Pantry' },
+  { name: 'Sugar', category: 'Pantry' },
+  { name: 'Flour', category: 'Pantry' },
+  { name: 'Salt', category: 'Pantry' },
+  { name: 'Pepper', category: 'Pantry' },
+  { name: 'Cereal', category: 'Pantry' },
+  { name: 'Canned Tomatoes', category: 'Pantry' },
+  { name: 'Beans', category: 'Pantry' },
+  // Beverages
+  { name: 'Water', category: 'Beverages' },
+  { name: 'Orange Juice', category: 'Beverages' },
+  { name: 'Coffee', category: 'Beverages' },
+  { name: 'Tea', category: 'Beverages' },
+  { name: 'Soda', category: 'Beverages' },
+  { name: 'Wine', category: 'Beverages' },
+  { name: 'Beer', category: 'Beverages' },
+  // Snacks
+  { name: 'Chips', category: 'Snacks' },
+  { name: 'Cookies', category: 'Snacks' },
+  { name: 'Chocolate', category: 'Snacks' },
+  { name: 'Nuts', category: 'Snacks' },
+  { name: 'Popcorn', category: 'Snacks' },
+  // Frozen
+  { name: 'Ice Cream', category: 'Frozen' },
+  { name: 'Frozen Pizza', category: 'Frozen' },
+  { name: 'Frozen Vegetables', category: 'Frozen' },
+  { name: 'Frozen Berries', category: 'Frozen' },
+  // Household
+  { name: 'Toilet Paper', category: 'Household' },
+  { name: 'Paper Towels', category: 'Household' },
+  { name: 'Dish Soap', category: 'Household' },
+  { name: 'Laundry Detergent', category: 'Household' },
+  { name: 'Trash Bags', category: 'Household' },
+  { name: 'Cleaning Spray', category: 'Household' },
+  // Personal Care
+  { name: 'Shampoo', category: 'Personal Care' },
+  { name: 'Toothpaste', category: 'Personal Care' },
+  { name: 'Soap', category: 'Personal Care' },
+  { name: 'Deodorant', category: 'Personal Care' },
+];
+
+// Get product suggestions based on search query
+export const getProductSuggestions = (
+  query: string,
+  limit: number = 5
+): Array<{ name: string; category: string }> => {
+  if (!query.trim()) return [];
+  const lowerQuery = query.toLowerCase();
+  return COMMON_PRODUCTS
+    .filter(p => p.name.toLowerCase().includes(lowerQuery))
+    .slice(0, limit);
+};
+
+// Suggest category based on product name
+export const suggestCategory = (productName: string): string | null => {
+  const lowerName = productName.toLowerCase();
+  const match = COMMON_PRODUCTS.find(p => 
+    p.name.toLowerCase() === lowerName || 
+    lowerName.includes(p.name.toLowerCase())
+  );
+  return match?.category || null;
+};
+
+// Store sorting configurations
+export type StoreName = 'Lidl' | 'Coop' | 'Migros' | 'Custom';
+
+export const STORE_CATEGORY_ORDER: Record<StoreName, string[]> = {
+  Lidl: [
+    'Fruits & Vegetables',
+    'Bakery',
+    'Dairy & Eggs',
+    'Meat & Seafood',
+    'Frozen',
+    'Pantry',
+    'Beverages',
+    'Snacks',
+    'Household',
+    'Personal Care',
+    'Other',
+  ],
+  Coop: [
+    'Fruits & Vegetables',
+    'Dairy & Eggs',
+    'Bakery',
+    'Meat & Seafood',
+    'Pantry',
+    'Beverages',
+    'Frozen',
+    'Snacks',
+    'Household',
+    'Personal Care',
+    'Other',
+  ],
+  Migros: [
+    'Bakery',
+    'Fruits & Vegetables',
+    'Dairy & Eggs',
+    'Meat & Seafood',
+    'Pantry',
+    'Frozen',
+    'Beverages',
+    'Snacks',
+    'Household',
+    'Personal Care',
+    'Other',
+  ],
+  Custom: PRODUCT_CATEGORIES,
 };
 
 // Calculate total price of items
@@ -103,4 +259,29 @@ export const groupByCategory = <T extends { category: string }>(
     groups[category].push(item);
     return groups;
   }, {} as Record<string, T[]>);
+};
+
+// Group and sort items by store category order
+export const groupByCategoryWithStoreOrder = <T extends { category: string }>(
+  items: T[],
+  store: StoreName = 'Custom'
+): Array<[string, T[]]> => {
+  const grouped = groupByCategory(items);
+  const order = STORE_CATEGORY_ORDER[store];
+  
+  const sorted: Array<[string, T[]]> = [];
+  for (const category of order) {
+    if (grouped[category]) {
+      sorted.push([category, grouped[category]]);
+    }
+  }
+  
+  // Add any categories not in the order
+  for (const [category, categoryItems] of Object.entries(grouped)) {
+    if (!order.includes(category)) {
+      sorted.push([category, categoryItems]);
+    }
+  }
+  
+  return sorted;
 };
