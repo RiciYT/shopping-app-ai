@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { Card, Text, Checkbox, IconButton, Chip, useTheme } from 'react-native-paper';
 import { Product } from '../types';
 import { formatPrice, getCategoryColor } from '../utils';
 
@@ -19,156 +19,127 @@ export function ProductItem({
   onPress,
   onDelete,
 }: ProductItemProps) {
-  return (
-    <TouchableOpacity
-      style={[styles.container, product.isChecked && styles.checkedContainer]}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <TouchableOpacity
-        style={[styles.checkbox, product.isChecked && styles.checkedCheckbox]}
-        onPress={onToggle}
-      >
-        {product.isChecked && (
-          <Ionicons name="checkmark" size={16} color="#fff" />
-        )}
-      </TouchableOpacity>
+  const theme = useTheme();
+  const categoryColor = getCategoryColor(product.category);
 
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Text
-            style={[styles.name, product.isChecked && styles.checkedText]}
-            numberOfLines={1}
-          >
-            {product.name}
-          </Text>
-          <View
-            style={[
-              styles.categoryBadge,
-              { backgroundColor: getCategoryColor(product.category) + '20' },
-            ]}
-          >
+  return (
+    <Card
+      style={[
+        styles.container,
+        { backgroundColor: product.isChecked ? theme.colors.surfaceVariant : theme.colors.elevation.level1 },
+        product.isChecked && styles.checkedContainer,
+      ]}
+      onPress={onPress}
+      mode="elevated"
+    >
+      <Card.Content style={styles.content}>
+        <Checkbox
+          status={product.isChecked ? 'checked' : 'unchecked'}
+          onPress={onToggle}
+          color={theme.colors.primary}
+        />
+
+        <View style={styles.info}>
+          <View style={styles.header}>
             <Text
+              variant="titleSmall"
+              numberOfLines={1}
               style={[
-                styles.categoryText,
-                { color: getCategoryColor(product.category) },
+                { color: theme.colors.onSurface },
+                product.isChecked && styles.checkedText,
               ]}
             >
-              {product.category}
+              {product.name}
             </Text>
+            <Chip
+              compact
+              textStyle={[styles.categoryChipText, { color: categoryColor }]}
+              style={[styles.categoryChip, { backgroundColor: categoryColor + '20' }]}
+            >
+              {product.category}
+            </Chip>
           </View>
-        </View>
 
-        <View style={styles.details}>
-          <Text style={styles.quantity}>
-            {product.quantity} {product.unit}
-          </Text>
-          {product.price !== undefined && product.price > 0 && (
-            <Text style={styles.price}>
-              {formatPrice(product.price * product.quantity, currency)}
+          <View style={styles.details}>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+              {product.quantity} {product.unit}
+            </Text>
+            {product.price !== undefined && product.price > 0 && (
+              <Text variant="labelMedium" style={[styles.price, { color: theme.colors.primary }]}>
+                {formatPrice(product.price * product.quantity, currency)}
+              </Text>
+            )}
+          </View>
+
+          {product.notes && (
+            <Text variant="bodySmall" numberOfLines={1} style={[styles.notes, { color: theme.colors.onSurfaceVariant }]}>
+              {product.notes}
             </Text>
           )}
         </View>
 
-        {product.notes && (
-          <Text style={styles.notes} numberOfLines={1}>
-            {product.notes}
-          </Text>
+        {onDelete && (
+          <IconButton
+            icon="delete-outline"
+            iconColor={theme.colors.error}
+            size={20}
+            onPress={onDelete}
+            style={styles.deleteButton}
+          />
         )}
-      </View>
-
-      {onDelete && (
-        <TouchableOpacity style={styles.deleteButton} onPress={onDelete}>
-          <Ionicons name="trash-outline" size={20} color="#ff6b6b" />
-        </TouchableOpacity>
-      )}
-    </TouchableOpacity>
+      </Card.Content>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 12,
     marginHorizontal: 16,
     marginVertical: 4,
     borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
   checkedContainer: {
-    backgroundColor: '#f5f5f5',
     opacity: 0.7,
   },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#4CAF50',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  checkedCheckbox: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50',
-  },
   content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  info: {
     flex: 1,
+    marginLeft: 4,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 4,
   },
-  name: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-    flex: 1,
-  },
   checkedText: {
     textDecorationLine: 'line-through',
-    color: '#999',
   },
-  categoryBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
+  categoryChip: {
     marginLeft: 8,
+    height: 24,
   },
-  categoryText: {
-    fontSize: 11,
-    fontWeight: '500',
+  categoryChipText: {
+    fontSize: 10,
+    marginVertical: 0,
+    marginHorizontal: 4,
   },
   details: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  quantity: {
-    fontSize: 14,
-    color: '#666',
-  },
   price: {
-    fontSize: 14,
-    color: '#4CAF50',
-    fontWeight: '600',
     marginLeft: 12,
+    fontWeight: '600',
   },
   notes: {
-    fontSize: 12,
-    color: '#999',
     marginTop: 4,
     fontStyle: 'italic',
   },
   deleteButton: {
-    padding: 8,
-    marginLeft: 8,
+    marginLeft: 4,
   },
 });

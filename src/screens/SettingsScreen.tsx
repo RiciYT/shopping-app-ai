@@ -1,15 +1,18 @@
 import React from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  Switch,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  Text,
+  Switch,
+  List,
+  Divider,
+  useTheme,
+} from 'react-native-paper';
 import { useApp } from '../context/AppContext';
 import { BudgetViewPlaceholder, MultiUserSyncPlaceholder } from '../components';
 import { clearAllStorage } from '../storage';
@@ -20,6 +23,7 @@ const UNITS = ['pcs', 'kg', 'lb', 'g', 'L', 'ml'];
 export function SettingsScreen() {
   const { state, updateSettings } = useApp();
   const { settings } = state;
+  const theme = useTheme();
 
   const handleClearData = () => {
     Alert.alert(
@@ -52,141 +56,145 @@ export function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
       <ScrollView style={styles.scrollView}>
         <View style={styles.header}>
-          <Text style={styles.title}>Settings</Text>
+          <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onSurface }]}>
+            Settings
+          </Text>
         </View>
 
         {/* General Settings */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>General</Text>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="moon-outline" size={22} color="#666" />
-              <Text style={styles.settingLabel}>Dark Mode</Text>
-            </View>
-            <Switch
-              value={settings.darkMode}
-              onValueChange={value => updateSettings({ darkMode: value })}
-              trackColor={{ false: '#ddd', true: '#81c784' }}
-              thumbColor={settings.darkMode ? '#4CAF50' : '#f4f3f4'}
-            />
-          </View>
-
-          <TouchableOpacity style={styles.settingItem} onPress={handleCurrencyChange}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="cash-outline" size={22} color="#666" />
-              <Text style={styles.settingLabel}>Currency</Text>
-            </View>
-            <View style={styles.settingValue}>
-              <Text style={styles.settingValueText}>{settings.currency}</Text>
-              <Ionicons name="chevron-forward" size={20} color="#ccc" />
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.settingItem} onPress={handleUnitChange}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="scale-outline" size={22} color="#666" />
-              <Text style={styles.settingLabel}>Default Unit</Text>
-            </View>
-            <View style={styles.settingValue}>
-              <Text style={styles.settingValueText}>{settings.defaultUnit}</Text>
-              <Ionicons name="chevron-forward" size={20} color="#ccc" />
-            </View>
-          </TouchableOpacity>
-        </View>
+        <Text variant="labelLarge" style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
+          General
+        </Text>
+        <List.Section style={[styles.section, { backgroundColor: theme.colors.elevation.level1 }]}>
+          <List.Item
+            title="Dark Mode"
+            titleStyle={{ color: theme.colors.onSurface }}
+            left={props => <List.Icon {...props} icon="weather-night" color={theme.colors.onSurfaceVariant} />}
+            right={() => (
+              <Switch
+                value={settings.darkMode}
+                onValueChange={value => updateSettings({ darkMode: value })}
+                color={theme.colors.primary}
+              />
+            )}
+          />
+          <Divider />
+          <List.Item
+            title="Currency"
+            titleStyle={{ color: theme.colors.onSurface }}
+            description={settings.currency}
+            descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
+            left={props => <List.Icon {...props} icon="currency-usd" color={theme.colors.onSurfaceVariant} />}
+            right={props => <List.Icon {...props} icon="chevron-right" color={theme.colors.onSurfaceVariant} />}
+            onPress={handleCurrencyChange}
+          />
+          <Divider />
+          <List.Item
+            title="Default Unit"
+            titleStyle={{ color: theme.colors.onSurface }}
+            description={settings.defaultUnit}
+            descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
+            left={props => <List.Icon {...props} icon="scale" color={theme.colors.onSurfaceVariant} />}
+            right={props => <List.Icon {...props} icon="chevron-right" color={theme.colors.onSurfaceVariant} />}
+            onPress={handleUnitChange}
+          />
+        </List.Section>
 
         {/* Features */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Features</Text>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="notifications-outline" size={22} color="#666" />
-              <Text style={styles.settingLabel}>Notifications</Text>
-            </View>
-            <Switch
-              value={settings.enableNotifications}
-              onValueChange={value => updateSettings({ enableNotifications: value })}
-              trackColor={{ false: '#ddd', true: '#81c784' }}
-              thumbColor={settings.enableNotifications ? '#4CAF50' : '#f4f3f4'}
-            />
-          </View>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="trending-up-outline" size={22} color="#666" />
-              <Text style={styles.settingLabel}>Price Tracking</Text>
-            </View>
-            <Switch
-              value={settings.enablePriceTracking}
-              onValueChange={value => updateSettings({ enablePriceTracking: value })}
-              trackColor={{ false: '#ddd', true: '#81c784' }}
-              thumbColor={settings.enablePriceTracking ? '#4CAF50' : '#f4f3f4'}
-            />
-          </View>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="alert-circle-outline" size={22} color="#666" />
-              <Text style={styles.settingLabel}>Budget Alerts</Text>
-            </View>
-            <Switch
-              value={settings.enableBudgetAlerts}
-              onValueChange={value => updateSettings({ enableBudgetAlerts: value })}
-              trackColor={{ false: '#ddd', true: '#81c784' }}
-              thumbColor={settings.enableBudgetAlerts ? '#4CAF50' : '#f4f3f4'}
-            />
-          </View>
-        </View>
+        <Text variant="labelLarge" style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
+          Features
+        </Text>
+        <List.Section style={[styles.section, { backgroundColor: theme.colors.elevation.level1 }]}>
+          <List.Item
+            title="Notifications"
+            titleStyle={{ color: theme.colors.onSurface }}
+            left={props => <List.Icon {...props} icon="bell-outline" color={theme.colors.onSurfaceVariant} />}
+            right={() => (
+              <Switch
+                value={settings.enableNotifications}
+                onValueChange={value => updateSettings({ enableNotifications: value })}
+                color={theme.colors.primary}
+              />
+            )}
+          />
+          <Divider />
+          <List.Item
+            title="Price Tracking"
+            titleStyle={{ color: theme.colors.onSurface }}
+            left={props => <List.Icon {...props} icon="trending-up" color={theme.colors.onSurfaceVariant} />}
+            right={() => (
+              <Switch
+                value={settings.enablePriceTracking}
+                onValueChange={value => updateSettings({ enablePriceTracking: value })}
+                color={theme.colors.primary}
+              />
+            )}
+          />
+          <Divider />
+          <List.Item
+            title="Budget Alerts"
+            titleStyle={{ color: theme.colors.onSurface }}
+            left={props => <List.Icon {...props} icon="alert-circle-outline" color={theme.colors.onSurfaceVariant} />}
+            right={() => (
+              <Switch
+                value={settings.enableBudgetAlerts}
+                onValueChange={value => updateSettings({ enableBudgetAlerts: value })}
+                color={theme.colors.primary}
+              />
+            )}
+          />
+        </List.Section>
 
         {/* Coming Soon Features */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Coming Soon</Text>
+        <Text variant="labelLarge" style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
+          Coming Soon
+        </Text>
+        <View style={styles.placeholderSection}>
           <BudgetViewPlaceholder />
           <MultiUserSyncPlaceholder />
         </View>
 
         {/* Data Management */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Data</Text>
-
-          <TouchableOpacity style={styles.settingItem} onPress={handleClearData}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="trash-outline" size={22} color="#ff6b6b" />
-              <Text style={[styles.settingLabel, { color: '#ff6b6b' }]}>
-                Clear All Data
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#ccc" />
-          </TouchableOpacity>
-        </View>
+        <Text variant="labelLarge" style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
+          Data
+        </Text>
+        <List.Section style={[styles.section, { backgroundColor: theme.colors.elevation.level1 }]}>
+          <List.Item
+            title="Clear All Data"
+            titleStyle={{ color: theme.colors.error }}
+            left={props => <List.Icon {...props} icon="delete-outline" color={theme.colors.error} />}
+            right={props => <List.Icon {...props} icon="chevron-right" color={theme.colors.onSurfaceVariant} />}
+            onPress={handleClearData}
+          />
+        </List.Section>
 
         {/* App Info */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About</Text>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="information-circle-outline" size={22} color="#666" />
-              <Text style={styles.settingLabel}>Version</Text>
-            </View>
-            <Text style={styles.settingValueText}>1.0.0</Text>
-          </View>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Ionicons name="logo-github" size={22} color="#666" />
-              <Text style={styles.settingLabel}>Shopping App AI</Text>
-            </View>
-            <Text style={styles.settingValueText}>Expo SDK 54</Text>
-          </View>
-        </View>
+        <Text variant="labelLarge" style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
+          About
+        </Text>
+        <List.Section style={[styles.section, { backgroundColor: theme.colors.elevation.level1 }]}>
+          <List.Item
+            title="Version"
+            titleStyle={{ color: theme.colors.onSurface }}
+            description="1.0.0"
+            descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
+            left={props => <List.Icon {...props} icon="information-outline" color={theme.colors.onSurfaceVariant} />}
+          />
+          <Divider />
+          <List.Item
+            title="Shopping App AI"
+            titleStyle={{ color: theme.colors.onSurface }}
+            description="Expo SDK 54 • Material Design 3"
+            descriptionStyle={{ color: theme.colors.onSurfaceVariant }}
+            left={props => <List.Icon {...props} icon="github" color={theme.colors.onSurfaceVariant} />}
+          />
+        </List.Section>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
             Made with ❤️ for easier shopping
           </Text>
         </View>
@@ -198,7 +206,6 @@ export function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   scrollView: {
     flex: 1,
@@ -208,56 +215,26 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   title: {
-    fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
-  },
-  section: {
-    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
     paddingHorizontal: 16,
     paddingVertical: 8,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+  section: {
+    marginBottom: 8,
+    borderRadius: 12,
+    marginHorizontal: 16,
+    overflow: 'hidden',
   },
-  settingInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  settingLabel: {
-    fontSize: 16,
-    color: '#333',
-  },
-  settingValue: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  settingValueText: {
-    fontSize: 16,
-    color: '#666',
+  placeholderSection: {
+    marginHorizontal: 16,
+    marginBottom: 8,
   },
   footer: {
     padding: 32,
     alignItems: 'center',
-  },
-  footerText: {
-    fontSize: 14,
-    color: '#999',
   },
 });
