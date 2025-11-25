@@ -6,9 +6,7 @@ import { useTheme } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import {
   HomeScreen,
-  ShoppingListScreen,
   ProductDetailsScreen,
-  HistoryScreen,
   SettingsScreen,
 } from '../screens';
 import { RootStackParamList, RootTabParamList } from '../types';
@@ -27,10 +25,6 @@ function MainTabs() {
 
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'ShoppingList') {
-            iconName = focused ? 'cart' : 'cart-outline';
-          } else if (route.name === 'History') {
-            iconName = focused ? 'time' : 'time-outline';
           } else if (route.name === 'Settings') {
             iconName = focused ? 'settings' : 'settings-outline';
           }
@@ -58,16 +52,6 @@ function MainTabs() {
         name="Home"
         component={HomeScreen}
         options={{ tabBarLabel: 'Home' }}
-      />
-      <Tab.Screen
-        name="ShoppingList"
-        component={ShoppingListScreen}
-        options={{ tabBarLabel: 'List' }}
-      />
-      <Tab.Screen
-        name="History"
-        component={HistoryScreen}
-        options={{ tabBarLabel: 'History' }}
       />
       <Tab.Screen
         name="Settings"
