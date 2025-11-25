@@ -43,10 +43,14 @@ export function SwipeCardStack({
     setCurrentIndex(prev => prev + 1);
   }, [onSwipeLeft]);
 
-  // Reset index when items array changes significantly (e.g., new list selected)
+  // Get the first item's ID to detect when the list changes completely (e.g., new list selected)
+  const firstItemId = items.length > 0 ? items[0].id : null;
+
+  // Reset index only when the first item changes (indicating a new list was selected)
+  // This prevents resetting position when items are just modified
   useEffect(() => {
     setCurrentIndex(0);
-  }, [items.length]);
+  }, [firstItemId]);
 
   // Check if all items are done
   const isComplete = currentIndex >= items.length;
