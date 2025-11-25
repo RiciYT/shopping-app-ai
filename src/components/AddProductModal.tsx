@@ -1,14 +1,19 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
-  Modal,
   ScrollView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  Portal,
+  Modal,
+  Text,
+  TextInput,
+  Button,
+  IconButton,
+  Chip,
+  useTheme,
+} from 'react-native-paper';
 import { PRODUCT_CATEGORIES, PRODUCT_UNITS } from '../utils';
 
 interface AddProductModalProps {
@@ -32,14 +37,13 @@ export function AddProductModal({
   onAdd,
   defaultUnit = 'pcs',
 }: AddProductModalProps) {
+  const theme = useTheme();
   const [name, setName] = useState('');
   const [category, setCategory] = useState(PRODUCT_CATEGORIES[0]);
   const [quantity, setQuantity] = useState('1');
   const [unit, setUnit] = useState(defaultUnit);
   const [price, setPrice] = useState('');
   const [notes, setNotes] = useState('');
-  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
-  const [showUnitPicker, setShowUnitPicker] = useState(false);
 
   const handleAdd = () => {
     if (!name.trim()) return;
@@ -75,248 +79,180 @@ export function AddProductModal({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.overlay}>
-        <View style={styles.container}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Add Product</Text>
-            <TouchableOpacity onPress={handleClose}>
-              <Ionicons name="close" size={24} color="#333" />
-            </TouchableOpacity>
+    <Portal>
+      <Modal
+        visible={visible}
+        onDismiss={handleClose}
+        contentContainerStyle={[styles.container, { backgroundColor: theme.colors.surface }]}
+      >
+        <View style={styles.header}>
+          <Text variant="titleLarge" style={{ color: theme.colors.onSurface }}>
+            Add Product
+          </Text>
+          <IconButton
+            icon="close"
+            iconColor={theme.colors.onSurface}
+            size={24}
+            onPress={handleClose}
+          />
+        </View>
+
+        <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
+          <TextInput
+            mode="outlined"
+            label="Product Name *"
+            placeholder="e.g., Milk, Bread, Apples"
+            value={name}
+            onChangeText={setName}
+            style={styles.input}
+          />
+
+          <Text variant="labelLarge" style={[styles.label, { color: theme.colors.onSurface }]}>
+            Category
+          </Text>
+          <View style={styles.chipContainer}>
+            {PRODUCT_CATEGORIES.map(cat => (
+              <Chip
+                key={cat}
+                selected={cat === category}
+                onPress={() => setCategory(cat)}
+                style={styles.chip}
+                showSelectedOverlay
+              >
+                {cat}
+              </Chip>
+            ))}
           </View>
 
-          <ScrollView style={styles.form}>
-            <Text style={styles.label}>Product Name *</Text>
-            <TextInput
-              style={styles.input}
-              value={name}
-              onChangeText={setName}
-              placeholder="e.g., Milk, Bread, Apples"
-              placeholderTextColor="#999"
-            />
-
-            <Text style={styles.label}>Category</Text>
-            <TouchableOpacity
-              style={styles.pickerButton}
-              onPress={() => setShowCategoryPicker(!showCategoryPicker)}
-            >
-              <Text style={styles.pickerButtonText}>{category}</Text>
-              <Ionicons name="chevron-down" size={20} color="#666" />
-            </TouchableOpacity>
-            {showCategoryPicker && (
-              <View style={styles.pickerOptions}>
-                {PRODUCT_CATEGORIES.map(cat => (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[
-                      styles.pickerOption,
-                      cat === category && styles.pickerOptionSelected,
-                    ]}
-                    onPress={() => {
-                      setCategory(cat);
-                      setShowCategoryPicker(false);
-                    }}
+          <View style={styles.row}>
+            <View style={styles.halfInput}>
+              <TextInput
+                mode="outlined"
+                label="Quantity"
+                value={quantity}
+                onChangeText={setQuantity}
+                keyboardType="numeric"
+                style={styles.input}
+              />
+            </View>
+            <View style={styles.halfInput}>
+              <Text variant="labelLarge" style={[styles.label, { color: theme.colors.onSurface }]}>
+                Unit
+              </Text>
+              <View style={styles.unitChipContainer}>
+                {PRODUCT_UNITS.map(u => (
+                  <Chip
+                    key={u}
+                    selected={u === unit}
+                    onPress={() => setUnit(u)}
+                    compact
+                    style={styles.unitChip}
+                    showSelectedOverlay
                   >
-                    <Text
-                      style={[
-                        styles.pickerOptionText,
-                        cat === category && styles.pickerOptionTextSelected,
-                      ]}
-                    >
-                      {cat}
-                    </Text>
-                  </TouchableOpacity>
+                    {u}
+                  </Chip>
                 ))}
               </View>
-            )}
-
-            <View style={styles.row}>
-              <View style={styles.halfInput}>
-                <Text style={styles.label}>Quantity</Text>
-                <TextInput
-                  style={styles.input}
-                  value={quantity}
-                  onChangeText={setQuantity}
-                  keyboardType="numeric"
-                  placeholder="1"
-                  placeholderTextColor="#999"
-                />
-              </View>
-              <View style={styles.halfInput}>
-                <Text style={styles.label}>Unit</Text>
-                <TouchableOpacity
-                  style={styles.pickerButton}
-                  onPress={() => setShowUnitPicker(!showUnitPicker)}
-                >
-                  <Text style={styles.pickerButtonText}>{unit}</Text>
-                  <Ionicons name="chevron-down" size={20} color="#666" />
-                </TouchableOpacity>
-                {showUnitPicker && (
-                  <View style={styles.pickerOptions}>
-                    {PRODUCT_UNITS.map(u => (
-                      <TouchableOpacity
-                        key={u}
-                        style={[
-                          styles.pickerOption,
-                          u === unit && styles.pickerOptionSelected,
-                        ]}
-                        onPress={() => {
-                          setUnit(u);
-                          setShowUnitPicker(false);
-                        }}
-                      >
-                        <Text
-                          style={[
-                            styles.pickerOptionText,
-                            u === unit && styles.pickerOptionTextSelected,
-                          ]}
-                        >
-                          {u}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
-              </View>
             </View>
+          </View>
 
-            <Text style={styles.label}>Price (optional)</Text>
-            <TextInput
-              style={styles.input}
-              value={price}
-              onChangeText={setPrice}
-              keyboardType="decimal-pad"
-              placeholder="0.00"
-              placeholderTextColor="#999"
-            />
+          <TextInput
+            mode="outlined"
+            label="Price (optional)"
+            value={price}
+            onChangeText={setPrice}
+            keyboardType="decimal-pad"
+            placeholder="0.00"
+            style={styles.input}
+            left={<TextInput.Affix text="$" />}
+          />
 
-            <Text style={styles.label}>Notes (optional)</Text>
-            <TextInput
-              style={[styles.input, styles.notesInput]}
-              value={notes}
-              onChangeText={setNotes}
-              placeholder="e.g., Organic, Low-fat, Brand preference"
-              placeholderTextColor="#999"
-              multiline
-            />
-          </ScrollView>
+          <TextInput
+            mode="outlined"
+            label="Notes (optional)"
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="e.g., Organic, Low-fat, Brand preference"
+            multiline
+            numberOfLines={3}
+            style={[styles.input, styles.notesInput]}
+          />
+        </ScrollView>
 
-          <TouchableOpacity
-            style={[styles.addButton, !name.trim() && styles.addButtonDisabled]}
+        <View style={styles.actions}>
+          <Button mode="text" onPress={handleClose}>
+            Cancel
+          </Button>
+          <Button
+            mode="contained"
             onPress={handleAdd}
             disabled={!name.trim()}
           >
-            <Text style={styles.addButtonText}>Add Product</Text>
-          </TouchableOpacity>
+            Add Product
+          </Button>
         </View>
-      </View>
-    </Modal>
+      </Modal>
+    </Portal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
   container: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    marginHorizontal: 16,
+    borderRadius: 28,
     maxHeight: '90%',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    paddingLeft: 24,
+    paddingRight: 8,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   form: {
-    padding: 16,
+    paddingHorizontal: 24,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
+    marginTop: 16,
     marginBottom: 8,
-    marginTop: 12,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#333',
+    marginBottom: 8,
   },
   notesInput: {
-    height: 80,
-    textAlignVertical: 'top',
+    minHeight: 80,
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+  },
+  chip: {
+    marginBottom: 4,
   },
   row: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
   },
   halfInput: {
     flex: 1,
   },
-  pickerButton: {
+  unitChipContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
+    flexWrap: 'wrap',
+    gap: 6,
   },
-  pickerButtonText: {
-    fontSize: 16,
-    color: '#333',
+  unitChip: {
+    height: 32,
   },
-  pickerOptions: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    marginTop: 4,
-    maxHeight: 150,
-  },
-  pickerOption: {
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  pickerOptionSelected: {
-    backgroundColor: '#e3f2fd',
-  },
-  pickerOptionText: {
-    fontSize: 14,
-    color: '#333',
-  },
-  pickerOptionTextSelected: {
-    color: '#2196F3',
-    fontWeight: '500',
-  },
-  addButton: {
-    backgroundColor: '#4CAF50',
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  addButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  actions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    padding: 24,
+    paddingTop: 16,
   },
 });

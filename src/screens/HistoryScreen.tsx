@@ -1,13 +1,17 @@
 import React from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  Text,
+  Card,
+  IconButton,
+  useTheme,
+} from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { HistoryEntry } from '../types';
@@ -15,6 +19,7 @@ import { formatDate, formatPrice } from '../utils';
 
 export function HistoryScreen() {
   const { state, dispatch } = useApp();
+  const theme = useTheme();
 
   const handleClearHistory = () => {
     Alert.alert(
@@ -32,42 +37,48 @@ export function HistoryScreen() {
   };
 
   const renderHistoryItem = ({ item }: { item: HistoryEntry }) => (
-    <View style={styles.historyCard}>
-      <View style={styles.cardHeader}>
-        <View style={styles.iconContainer}>
-          <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
-        </View>
-        <View style={styles.cardContent}>
-          <Text style={styles.listName} numberOfLines={1}>
-            {item.listName}
-          </Text>
-          <Text style={styles.completedDate}>
-            {formatDate(item.completedAt)}
-          </Text>
-        </View>
-      </View>
-      <View style={styles.cardStats}>
-        <View style={styles.statItem}>
-          <Ionicons name="cart-outline" size={16} color="#666" />
-          <Text style={styles.statText}>{item.itemCount} items</Text>
-        </View>
-        {item.totalPrice !== undefined && item.totalPrice > 0 && (
-          <View style={styles.statItem}>
-            <Ionicons name="pricetag-outline" size={16} color="#666" />
-            <Text style={styles.statText}>
-              {formatPrice(item.totalPrice, state.settings.currency)}
+    <Card style={[styles.historyCard, { backgroundColor: theme.colors.elevation.level1 }]} mode="elevated">
+      <Card.Content>
+        <View style={styles.cardHeader}>
+          <View style={[styles.iconContainer, { backgroundColor: theme.colors.primaryContainer }]}>
+            <Ionicons name="checkmark-circle" size={24} color={theme.colors.primary} />
+          </View>
+          <View style={styles.cardContent}>
+            <Text variant="titleMedium" numberOfLines={1} style={{ color: theme.colors.onSurface }}>
+              {item.listName}
+            </Text>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+              {formatDate(item.completedAt)}
             </Text>
           </View>
-        )}
-      </View>
-    </View>
+        </View>
+        <View style={[styles.cardStats, { borderTopColor: theme.colors.outlineVariant }]}>
+          <View style={styles.statItem}>
+            <Ionicons name="cart-outline" size={16} color={theme.colors.onSurfaceVariant} />
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+              {item.itemCount} items
+            </Text>
+          </View>
+          {item.totalPrice !== undefined && item.totalPrice > 0 && (
+            <View style={styles.statItem}>
+              <Ionicons name="pricetag-outline" size={16} color={theme.colors.onSurfaceVariant} />
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                {formatPrice(item.totalPrice, state.settings.currency)}
+              </Text>
+            </View>
+          )}
+        </View>
+      </Card.Content>
+    </Card>
   );
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Ionicons name="time-outline" size={64} color="#ccc" />
-      <Text style={styles.emptyStateTitle}>No History Yet</Text>
-      <Text style={styles.emptyStateSubtitle}>
+      <Ionicons name="time-outline" size={64} color={theme.colors.outlineVariant} />
+      <Text variant="titleLarge" style={[styles.emptyStateTitle, { color: theme.colors.onSurface }]}>
+        No History Yet
+      </Text>
+      <Text variant="bodyMedium" style={[styles.emptyStateSubtitle, { color: theme.colors.onSurfaceVariant }]}>
         Completed shopping lists will appear here
       </Text>
     </View>
@@ -85,36 +96,53 @@ export function HistoryScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Shopping History</Text>
+        <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onSurface }]}>
+          Shopping History
+        </Text>
         {state.history.length > 0 && (
-          <TouchableOpacity style={styles.clearButton} onPress={handleClearHistory}>
-            <Ionicons name="trash-outline" size={20} color="#ff6b6b" />
-          </TouchableOpacity>
+          <IconButton
+            icon="delete-outline"
+            iconColor={theme.colors.error}
+            size={24}
+            onPress={handleClearHistory}
+          />
         )}
       </View>
 
       {/* Summary Stats */}
       {state.history.length > 0 && (
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>{totalTrips}</Text>
-            <Text style={styles.summaryLabel}>Shopping Trips</Text>
-          </View>
-          <View style={styles.summaryDivider} />
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>{totalItems}</Text>
-            <Text style={styles.summaryLabel}>Items Bought</Text>
-          </View>
-          <View style={styles.summaryDivider} />
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>
-              {formatPrice(totalSpent, state.settings.currency)}
-            </Text>
-            <Text style={styles.summaryLabel}>Total Spent</Text>
-          </View>
-        </View>
+        <Card style={[styles.summaryCard, { backgroundColor: theme.colors.elevation.level1 }]} mode="elevated">
+          <Card.Content style={styles.summaryContent}>
+            <View style={styles.summaryItem}>
+              <Text variant="titleLarge" style={{ color: theme.colors.onSurface }}>
+                {totalTrips}
+              </Text>
+              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                Shopping Trips
+              </Text>
+            </View>
+            <View style={[styles.summaryDivider, { backgroundColor: theme.colors.outlineVariant }]} />
+            <View style={styles.summaryItem}>
+              <Text variant="titleLarge" style={{ color: theme.colors.onSurface }}>
+                {totalItems}
+              </Text>
+              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                Items Bought
+              </Text>
+            </View>
+            <View style={[styles.summaryDivider, { backgroundColor: theme.colors.outlineVariant }]} />
+            <View style={styles.summaryItem}>
+              <Text variant="titleLarge" style={{ color: theme.colors.onSurface }}>
+                {formatPrice(totalSpent, state.settings.currency)}
+              </Text>
+              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                Total Spent
+              </Text>
+            </View>
+          </Card.Content>
+        </Card>
       )}
 
       {state.history.length === 0 ? (
@@ -135,7 +163,6 @@ export function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   header: {
     flexDirection: 'row',
@@ -145,43 +172,22 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   title: {
-    fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
-  },
-  clearButton: {
-    padding: 8,
   },
   summaryCard: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
     marginHorizontal: 16,
     marginBottom: 16,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderRadius: 16,
+  },
+  summaryContent: {
+    flexDirection: 'row',
   },
   summaryItem: {
     flex: 1,
     alignItems: 'center',
   },
-  summaryValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#333',
-  },
-  summaryLabel: {
-    fontSize: 11,
-    color: '#666',
-    marginTop: 4,
-  },
   summaryDivider: {
     width: 1,
-    backgroundColor: '#eee',
     marginHorizontal: 8,
   },
   listContent: {
@@ -189,15 +195,8 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   historyCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    borderRadius: 16,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -207,7 +206,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#e8f5e9',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -215,32 +213,17 @@ const styles = StyleSheet.create({
   cardContent: {
     flex: 1,
   },
-  listName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  completedDate: {
-    fontSize: 13,
-    color: '#999',
-    marginTop: 2,
-  },
   cardStats: {
     flexDirection: 'row',
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
     gap: 16,
   },
   statItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-  },
-  statText: {
-    fontSize: 13,
-    color: '#666',
   },
   emptyState: {
     flex: 1,
@@ -249,14 +232,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   emptyStateTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#333',
     marginTop: 16,
   },
   emptyStateSubtitle: {
-    fontSize: 14,
-    color: '#666',
     textAlign: 'center',
     marginTop: 8,
   },

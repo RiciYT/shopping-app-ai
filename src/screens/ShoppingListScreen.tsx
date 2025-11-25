@@ -1,13 +1,19 @@
 import React, { useState, useMemo } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   FlatList,
-  TouchableOpacity,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  Text,
+  FAB,
+  IconButton,
+  ProgressBar,
+  useTheme,
+  TouchableRipple,
+} from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -23,6 +29,7 @@ export function ShoppingListScreen() {
   const { state, getCurrentList, addProduct, toggleProduct, deleteProduct, completeList } = useApp();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showChecked, setShowChecked] = useState(true);
+  const theme = useTheme();
 
   const currentList = getCurrentList();
 
@@ -92,11 +99,13 @@ export function ShoppingListScreen() {
 
   if (!currentList) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
         <View style={styles.emptyState}>
-          <Ionicons name="list-outline" size={64} color="#ccc" />
-          <Text style={styles.emptyStateTitle}>No List Selected</Text>
-          <Text style={styles.emptyStateSubtitle}>
+          <Ionicons name="list-outline" size={64} color={theme.colors.outlineVariant} />
+          <Text variant="titleLarge" style={[styles.emptyStateTitle, { color: theme.colors.onSurface }]}>
+            No List Selected
+          </Text>
+          <Text variant="bodyMedium" style={[styles.emptyStateSubtitle, { color: theme.colors.onSurfaceVariant }]}>
             Select or create a shopping list from the Home screen
           </Text>
         </View>
@@ -107,12 +116,14 @@ export function ShoppingListScreen() {
   const totalPrice = calculateTotalPrice(currentList.items);
   const progress =
     currentList.items.length > 0
-      ? (checkedItems.length / currentList.items.length) * 100
+      ? checkedItems.length / currentList.items.length
       : 0;
 
   const renderCategorySection = ([category, items]: [string, Product[]]) => (
     <View key={category} style={styles.categorySection}>
-      <Text style={styles.categoryTitle}>{category}</Text>
+      <Text variant="labelLarge" style={[styles.categoryTitle, { color: theme.colors.onSurfaceVariant }]}>
+        {category}
+      </Text>
       {items.map(item => (
         <ProductItem
           key={item.id}
@@ -127,33 +138,35 @@ export function ShoppingListScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.title} numberOfLines={1}>
+          <Text variant="headlineSmall" numberOfLines={1} style={[styles.title, { color: theme.colors.onSurface }]}>
             {currentList.name}
           </Text>
-          <Text style={styles.subtitle}>
+          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
             {currentList.items.length} items •{' '}
             {formatPrice(totalPrice, state.settings.currency)}
           </Text>
         </View>
-        <TouchableOpacity
-          style={styles.completeButton}
+        <IconButton
+          icon="check-circle-outline"
+          iconColor={theme.colors.primary}
+          size={28}
           onPress={handleCompleteList}
           disabled={currentList.items.length === 0}
-        >
-          <Ionicons name="checkmark-circle-outline" size={24} color="#4CAF50" />
-        </TouchableOpacity>
+        />
       </View>
 
       {/* Progress Bar */}
       <View style={styles.progressContainer}>
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: `${progress}%` }]} />
-        </View>
-        <Text style={styles.progressText}>
+        <ProgressBar
+          progress={progress}
+          color={theme.colors.primary}
+          style={[styles.progressBar, { backgroundColor: theme.colors.surfaceVariant }]}
+        />
+        <Text variant="labelSmall" style={[styles.progressText, { color: theme.colors.onSurfaceVariant }]}>
           {checkedItems.length} / {currentList.items.length} completed
         </Text>
       </View>
@@ -161,9 +174,11 @@ export function ShoppingListScreen() {
       {/* Items List */}
       {currentList.items.length === 0 ? (
         <View style={styles.emptyListState}>
-          <Ionicons name="basket-outline" size={48} color="#ccc" />
-          <Text style={styles.emptyListTitle}>List is Empty</Text>
-          <Text style={styles.emptyListSubtitle}>
+          <Ionicons name="basket-outline" size={48} color={theme.colors.outlineVariant} />
+          <Text variant="titleMedium" style={[styles.emptyListTitle, { color: theme.colors.onSurface }]}>
+            List is Empty
+          </Text>
+          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
             Tap the button below to add items
           </Text>
         </View>
@@ -175,19 +190,21 @@ export function ShoppingListScreen() {
           ListFooterComponent={
             checkedItems.length > 0 ? (
               <View style={styles.checkedSection}>
-                <TouchableOpacity
+                <TouchableRipple
                   style={styles.checkedHeader}
                   onPress={() => setShowChecked(!showChecked)}
                 >
-                  <Text style={styles.checkedHeaderText}>
-                    Checked ({checkedItems.length})
-                  </Text>
-                  <Ionicons
-                    name={showChecked ? 'chevron-up' : 'chevron-down'}
-                    size={20}
-                    color="#666"
-                  />
-                </TouchableOpacity>
+                  <View style={styles.checkedHeaderContent}>
+                    <Text variant="labelLarge" style={{ color: theme.colors.onSurfaceVariant }}>
+                      Checked ({checkedItems.length})
+                    </Text>
+                    <Ionicons
+                      name={showChecked ? 'chevron-up' : 'chevron-down'}
+                      size={20}
+                      color={theme.colors.onSurfaceVariant}
+                    />
+                  </View>
+                </TouchableRipple>
                 {showChecked &&
                   checkedItems.map(item => (
                     <ProductItem
@@ -208,9 +225,12 @@ export function ShoppingListScreen() {
       )}
 
       {/* FAB */}
-      <TouchableOpacity style={styles.fab} onPress={() => setShowAddModal(true)}>
-        <Ionicons name="add" size={28} color="#fff" />
-      </TouchableOpacity>
+      <FAB
+        icon="plus"
+        style={[styles.fab, { backgroundColor: theme.colors.primaryContainer }]}
+        color={theme.colors.onPrimaryContainer}
+        onPress={() => setShowAddModal(true)}
+      />
 
       {/* Add Product Modal */}
       <AddProductModal
@@ -226,7 +246,6 @@ export function ShoppingListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   header: {
     flexDirection: 'row',
@@ -236,18 +255,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   title: {
-    fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
     maxWidth: 280,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
-  },
-  completeButton: {
-    padding: 8,
   },
   progressContainer: {
     paddingHorizontal: 16,
@@ -255,18 +264,9 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 8,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#4CAF50',
     borderRadius: 4,
   },
   progressText: {
-    fontSize: 12,
-    color: '#666',
     marginTop: 4,
   },
   listContent: {
@@ -276,9 +276,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   categoryTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
     paddingHorizontal: 16,
     paddingVertical: 8,
     textTransform: 'uppercase',
@@ -288,16 +285,13 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   checkedHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  checkedHeaderText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
+  checkedHeaderContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   emptyState: {
     flex: 1,
@@ -306,14 +300,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   emptyStateTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#333',
     marginTop: 16,
   },
   emptyStateSubtitle: {
-    fontSize: 14,
-    color: '#666',
     textAlign: 'center',
     marginTop: 8,
   },
@@ -323,30 +312,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyListTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
     marginTop: 12,
-  },
-  emptyListSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
   },
   fab: {
     position: 'absolute',
     right: 16,
     bottom: 16,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#4CAF50',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
+    borderRadius: 16,
   },
 });
