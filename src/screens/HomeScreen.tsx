@@ -78,19 +78,24 @@ export function HomeScreen() {
       });
     });
 
-    // Also include items from completed/archived lists
+    // Also include items from completed/archived lists to count usage
     state.shoppingLists.filter(list => list.isArchived).forEach(list => {
       list.items.forEach(item => {
         const key = item.name.toLowerCase();
+        const completedDate = list.completedAt || list.updatedAt;
         if (!itemMap[key]) {
           itemMap[key] = { 
             name: item.name, 
             category: item.category, 
-            lastUsedAt: list.completedAt, 
+            lastUsedAt: completedDate, 
             timesUsed: 1 
           };
         } else {
           itemMap[key].timesUsed += 1;
+          // Update lastUsedAt if this completion is more recent
+          if (completedDate && (!itemMap[key].lastUsedAt || completedDate > itemMap[key].lastUsedAt)) {
+            itemMap[key].lastUsedAt = completedDate;
+          }
         }
       });
     });
@@ -106,17 +111,18 @@ export function HomeScreen() {
     }
 
     // Sort by lastUsedAt (most recent) and timesUsed (most used)
-    return Object.values(itemMap)
+    // Pre-compute timestamps for efficient sorting
+    const itemsWithTimestamp = Object.values(itemMap).map(item => ({
+      ...item,
+      lastUsedTimestamp: item.lastUsedAt ? new Date(item.lastUsedAt).getTime() : 0
+    }));
+    
+    return itemsWithTimestamp
       .sort((a, b) => {
         // First by timesUsed
         if (b.timesUsed !== a.timesUsed) return b.timesUsed - a.timesUsed;
-        // Then by lastUsedAt
-        if (a.lastUsedAt && b.lastUsedAt) {
-          return new Date(b.lastUsedAt).getTime() - new Date(a.lastUsedAt).getTime();
-        }
-        if (a.lastUsedAt) return -1;
-        if (b.lastUsedAt) return 1;
-        return 0;
+        // Then by lastUsedAt (using pre-computed timestamps)
+        return b.lastUsedTimestamp - a.lastUsedTimestamp;
       })
       .slice(0, 8);
   }, [state.shoppingLists]);
