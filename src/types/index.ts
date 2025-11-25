@@ -87,4 +87,5 @@ export type RootStackParamList = {
   MainTabs: undefined;
   ProductDetails: { product: Product; listId: string };
   NewList: undefined;
+  SwipeMode: undefined;
 };

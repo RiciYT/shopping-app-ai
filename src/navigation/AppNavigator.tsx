@@ -8,6 +8,7 @@ import {
   HomeScreen,
   ProductDetailsScreen,
   SettingsScreen,
+  SwipeModeScreen,
 } from '../screens';
 import { RootStackParamList, RootTabParamList } from '../types';
 
@@ -73,6 +74,14 @@ export function AppNavigator() {
           options={{
             presentation: 'card',
             animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
+          name="SwipeMode"
+          component={SwipeModeScreen}
+          options={{
+            presentation: 'fullScreenModal',
+            animation: 'slide_from_bottom',
           }}
         />
       </Stack.Navigator>
