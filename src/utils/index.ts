@@ -336,14 +336,14 @@ export const parseItemInput = (input: string, defaultUnit: string = 'pcs'): Pars
       quantity = parseInt(leadingNumberMatch[1], 10);
       text = leadingNumberMatch[2];
       autofilled = true;
-    }
-    
-    // Check for trailing quantity (e.g., "bananas 3")
-    const trailingNumberMatch = text.match(/^(.+?)\s+(\d+)$/);
-    if (trailingNumberMatch && !autofilled) {
-      quantity = parseInt(trailingNumberMatch[2], 10);
-      text = trailingNumberMatch[1];
-      autofilled = true;
+    } else {
+      // Only check trailing if leading didn't match
+      const trailingNumberMatch = text.match(/^(.+?)\s+(\d+)$/);
+      if (trailingNumberMatch) {
+        quantity = parseInt(trailingNumberMatch[2], 10);
+        text = trailingNumberMatch[1];
+        autofilled = true;
+      }
     }
   }
   
