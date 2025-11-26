@@ -347,8 +347,11 @@ export const parseItemInput = (input: string, defaultUnit: string = 'pcs'): Pars
     }
   }
   
-  // Clean up the name - capitalize first letter
-  const name = text.charAt(0).toUpperCase() + text.slice(1);
+  // Clean up the name - capitalize every word
+  const name = text
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
   
   // Auto-suggest category
   const category = suggestCategory(name) || 'Other';
