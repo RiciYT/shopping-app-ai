@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -42,6 +42,14 @@ export function ItemInputField({
   const [inputValue, setInputValue] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<RNTextInput>(null);
+  const isMountedRef = useRef(true);
+
+  // Cleanup on unmount to prevent state updates on unmounted component
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Build suggestions list
   const suggestions = useMemo((): Suggestion[] => {
@@ -119,7 +127,13 @@ export function ItemInputField({
           value={inputValue}
           onChangeText={setInputValue}
           onFocus={() => setIsFocused(true)}
-          onBlur={() => setTimeout(() => setIsFocused(false), BLUR_DELAY_MS)}
+          onBlur={() => {
+            setTimeout(() => {
+              if (isMountedRef.current) {
+                setIsFocused(false);
+              }
+            }, BLUR_DELAY_MS);
+          }}
           onSubmitEditing={handleSubmit}
           returnKeyType="done"
           blurOnSubmit={false}

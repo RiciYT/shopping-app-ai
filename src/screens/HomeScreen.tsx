@@ -250,16 +250,20 @@ export function HomeScreen() {
       });
     } else {
       const newList = addList('Shopping List');
-      addProduct(newList.id, {
-        name: parsedItem.name,
-        category: parsedItem.category,
-        quantity: parsedItem.quantity,
-        unit: parsedItem.unit,
-        isChecked: false,
-        autofilled: parsedItem.autofilled,
-        lastUsedAt: new Date(),
-        timesUsed: 1,
-      });
+      if (newList?.id) {
+        addProduct(newList.id, {
+          name: parsedItem.name,
+          category: parsedItem.category,
+          quantity: parsedItem.quantity,
+          unit: parsedItem.unit,
+          isChecked: false,
+          autofilled: parsedItem.autofilled,
+          lastUsedAt: new Date(),
+          timesUsed: 1,
+        });
+      } else {
+        Alert.alert('Error', 'Failed to create a new shopping list. Please try again.');
+      }
     }
   }, [currentList, activeLists, addProduct, addList, dispatch]);
 
@@ -277,18 +281,37 @@ export function HomeScreen() {
         lastUsedAt: new Date(),
         timesUsed: 1,
       });
-    }
-  }, [currentList, addProduct]);
-
-  const handleAddProduct = (productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
-    if (currentList) {
-      addProduct(currentList.id, {
-        ...productData,
+    } else if (activeLists.length > 0) {
+      const firstList = activeLists[0];
+      dispatch({ type: 'SET_CURRENT_LIST', payload: firstList.id });
+      addProduct(firstList.id, {
+        name: item.name,
+        category: item.category,
+        quantity: item.quantity,
+        unit: item.unit,
+        isChecked: false,
+        store: item.store,
+        notes: item.notes,
         lastUsedAt: new Date(),
         timesUsed: 1,
       });
+    } else {
+      const newList = addList('Shopping List');
+      if (newList?.id) {
+        addProduct(newList.id, {
+          name: item.name,
+          category: item.category,
+          quantity: item.quantity,
+          unit: item.unit,
+          isChecked: false,
+          store: item.store,
+          notes: item.notes,
+          lastUsedAt: new Date(),
+          timesUsed: 1,
+        });
+      }
     }
-  };
+  }, [currentList, activeLists, addProduct, addList, dispatch]);
 
   const handleToggleProduct = useCallback((productId: string) => {
     if (currentList) {

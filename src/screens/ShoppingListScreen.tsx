@@ -5,7 +5,6 @@ import {
   FlatList,
   Alert,
   Platform,
-  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -77,6 +76,8 @@ export function ShoppingListScreen() {
         unit: parsedItem.unit,
         isChecked: false,
         autofilled: parsedItem.autofilled,
+        lastUsedAt: new Date(),
+        timesUsed: 1,
       });
     }
   }, [currentList, addProduct]);
@@ -91,15 +92,11 @@ export function ShoppingListScreen() {
         isChecked: false,
         store: item.store,
         notes: item.notes,
+        lastUsedAt: new Date(),
+        timesUsed: 1,
       });
     }
   }, [currentList, addProduct]);
-
-  const handleAddProduct = (productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
-    if (currentList) {
-      addProduct(currentList.id, productData);
-    }
-  };
 
   const handleToggleProduct = useCallback((productId: string) => {
     if (currentList) {

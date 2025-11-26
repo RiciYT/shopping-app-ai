@@ -296,19 +296,20 @@ export interface ParsedItemInput {
 }
 
 // Unit patterns for parsing (regex patterns for common units)
+// Using (?:\s|$) instead of \b to prevent matching unit-like substrings in words
 const UNIT_PATTERNS: Array<{ pattern: RegExp; unit: string }> = [
-  { pattern: /(\d+(?:\.\d+)?)\s*kg\b/i, unit: 'kg' },
-  { pattern: /(\d+(?:\.\d+)?)\s*g\b/i, unit: 'g' },
-  { pattern: /(\d+(?:\.\d+)?)\s*lb\b/i, unit: 'lb' },
-  { pattern: /(\d+(?:\.\d+)?)\s*oz\b/i, unit: 'oz' },
-  { pattern: /(\d+(?:\.\d+)?)\s*l\b/i, unit: 'L' },
-  { pattern: /(\d+(?:\.\d+)?)\s*ml\b/i, unit: 'ml' },
-  { pattern: /(\d+)\s*(?:pcs?|pieces?|x)\b/i, unit: 'pcs' },
-  { pattern: /(\d+)\s*(?:pack(?:s)?|pk)\b/i, unit: 'pack' },
-  { pattern: /(\d+)\s*(?:bottle(?:s)?)\b/i, unit: 'bottle' },
-  { pattern: /(\d+)\s*(?:can(?:s)?)\b/i, unit: 'can' },
-  { pattern: /(\d+)\s*(?:box(?:es)?)\b/i, unit: 'box' },
-  { pattern: /(\d+)\s*(?:bag(?:s)?)\b/i, unit: 'bag' },
+  { pattern: /(\d+(?:\.\d+)?)\s*kg(?:\s|$)/i, unit: 'kg' },
+  { pattern: /(\d+(?:\.\d+)?)\s*g(?:\s|$)/i, unit: 'g' },
+  { pattern: /(\d+(?:\.\d+)?)\s*lb(?:\s|$)/i, unit: 'lb' },
+  { pattern: /(\d+(?:\.\d+)?)\s*oz(?:\s|$)/i, unit: 'oz' },
+  { pattern: /(\d+(?:\.\d+)?)\s*l(?:\s|$)/i, unit: 'L' },
+  { pattern: /(\d+(?:\.\d+)?)\s*ml(?:\s|$)/i, unit: 'ml' },
+  { pattern: /(\d+)\s*(?:pcs?|pieces?|x)(?:\s|$)/i, unit: 'pcs' },
+  { pattern: /(\d+)\s*(?:pack(?:s)?|pk)(?:\s|$)/i, unit: 'pack' },
+  { pattern: /(\d+)\s*(?:bottle(?:s)?)(?:\s|$)/i, unit: 'bottle' },
+  { pattern: /(\d+)\s*(?:can(?:s)?)(?:\s|$)/i, unit: 'can' },
+  { pattern: /(\d+)\s*(?:box(?:es)?)(?:\s|$)/i, unit: 'box' },
+  { pattern: /(\d+)\s*(?:bag(?:s)?)(?:\s|$)/i, unit: 'bag' },
 ];
 
 export const parseItemInput = (input: string, defaultUnit: string = 'pcs'): ParsedItemInput => {

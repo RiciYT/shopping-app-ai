@@ -20,7 +20,7 @@ import {
 } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { Product } from '../types';
-import { CATEGORY_INFO, PRODUCT_UNITS, getCategoryColor } from '../utils';
+import { CATEGORY_INFO, PRODUCT_UNITS } from '../utils';
 
 interface EditItemBottomSheetProps {
   visible: boolean;
@@ -228,7 +228,12 @@ export function EditItemBottomSheet({
                   <TextInput
                     mode="outlined"
                     value={quantity}
-                    onChangeText={setQuantity}
+                    onChangeText={(text) => {
+                      // Only allow positive integers
+                      if (/^\d*$/.test(text)) {
+                        setQuantity(text);
+                      }
+                    }}
                     keyboardType="numeric"
                     style={styles.quantityInput}
                     outlineStyle={styles.inputOutline}
@@ -274,7 +279,12 @@ export function EditItemBottomSheet({
               mode="outlined"
               label="Price"
               value={price}
-              onChangeText={setPrice}
+              onChangeText={(text) => {
+                // Only allow numbers and one decimal point
+                if (/^\d*\.?\d*$/.test(text)) {
+                  setPrice(text);
+                }
+              }}
               keyboardType="decimal-pad"
               placeholder="0.00"
               style={styles.input}
