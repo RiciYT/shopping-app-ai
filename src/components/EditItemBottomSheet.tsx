@@ -229,8 +229,9 @@ export function EditItemBottomSheet({
                     mode="outlined"
                     value={quantity}
                     onChangeText={(text) => {
-                      // Only allow positive integers
-                      if (/^\d*$/.test(text)) {
+                      // Allow empty string for editing, and positive integers
+                      // The save handler will convert empty to 1
+                      if (text === '' || /^[1-9]\d*$/.test(text)) {
                         setQuantity(text);
                       }
                     }}
@@ -280,8 +281,9 @@ export function EditItemBottomSheet({
               label="Price"
               value={price}
               onChangeText={(text) => {
-                // Only allow numbers and one decimal point
-                if (/^\d*\.?\d*$/.test(text)) {
+                // Allow empty string, valid decimal numbers (0.00, 1.50, .99, 10)
+                // Prevents invalid patterns like multiple decimals or lone period
+                if (text === '' || /^(\d+\.?\d*|\.\d+)$/.test(text)) {
                   setPrice(text);
                 }
               }}
