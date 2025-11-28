@@ -9,7 +9,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Text,
-  FAB,
   IconButton,
   ProgressBar,
   useTheme,
@@ -21,9 +20,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
-import { ProductItem, AddProductModal } from '../components';
+import { ProductItem, ItemInputField, EditItemBottomSheet, RecentlyUsedSection } from '../components';
 import { Product, RootStackParamList } from '../types';
-import { formatPrice, calculateTotalPrice, groupByCategoryWithStoreOrder, StoreName, getCategoryColor, getCategoryIcon } from '../utils';
+import { formatPrice, calculateTotalPrice, groupByCategoryWithStoreOrder, StoreName, getCategoryColor, getCategoryIcon, ParsedItemInput } from '../utils';
 
 type ShoppingListNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -31,11 +30,11 @@ const STORES: StoreName[] = ['Custom', 'Lidl', 'Coop', 'Migros'];
 
 export function ShoppingListScreen() {
   const navigation = useNavigation<ShoppingListNavigationProp>();
-  const { state, getCurrentList, addProduct, toggleProduct, deleteProduct, completeList } = useApp();
-  const [showAddModal, setShowAddModal] = useState(false);
+  const { state, getCurrentList, addProduct, updateProduct, toggleProduct, deleteProduct, completeList } = useApp();
   const [showChecked, setShowChecked] = useState(true);
   const [selectedStore, setSelectedStore] = useState<StoreName>('Custom');
   const [showStoreMenu, setShowStoreMenu] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const theme = useTheme();
 
   const currentList = getCurrentList();
@@ -48,16 +47,56 @@ export function ShoppingListScreen() {
     };
   }, [currentList]);
 
+  // Get recently used items for suggestions
+  const recentItems = useMemo(() => {
+    if (!currentList) return [];
+    // Get unique items from this list and history, sorted by most recent
+    const itemMap = new Map<string, Product>();
+    currentList.items.forEach(item => {
+      const key = item.name.toLowerCase();
+      if (!itemMap.has(key) || (item.lastUsedAt && (!itemMap.get(key)?.lastUsedAt || 
+          new Date(item.lastUsedAt) > new Date(itemMap.get(key)!.lastUsedAt!)))) {
+        itemMap.set(key, item);
+      }
+    });
+    return Array.from(itemMap.values());
+  }, [currentList]);
+
   const groupedUnchecked = useMemo(
     () => groupByCategoryWithStoreOrder(uncheckedItems, selectedStore),
     [uncheckedItems, selectedStore]
   );
 
-  const handleAddProduct = (productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const handleAddItem = useCallback((parsedItem: ParsedItemInput) => {
     if (currentList) {
-      addProduct(currentList.id, productData);
+      addProduct(currentList.id, {
+        name: parsedItem.name,
+        category: parsedItem.category,
+        quantity: parsedItem.quantity,
+        unit: parsedItem.unit,
+        isChecked: false,
+        autofilled: parsedItem.autofilled,
+        lastUsedAt: new Date(),
+        timesUsed: 1,
+      });
     }
-  };
+  }, [currentList, addProduct]);
+
+  const handleQuickAddFromRecent = useCallback((item: Product) => {
+    if (currentList) {
+      addProduct(currentList.id, {
+        name: item.name,
+        category: item.category,
+        quantity: item.quantity,
+        unit: item.unit,
+        isChecked: false,
+        store: item.store,
+        notes: item.notes,
+        lastUsedAt: new Date(),
+        timesUsed: 1,
+      });
+    }
+  }, [currentList, addProduct]);
 
   const handleToggleProduct = useCallback((productId: string) => {
     if (currentList) {
@@ -87,6 +126,22 @@ export function ShoppingListScreen() {
       navigation.navigate('ProductDetails', { product, listId: currentList.id });
     }
   }, [currentList, navigation]);
+
+  const handleProductLongPress = useCallback((product: Product) => {
+    setEditingProduct(product);
+  }, []);
+
+  const handleSaveProduct = useCallback((product: Product) => {
+    if (currentList) {
+      updateProduct(currentList.id, product);
+    }
+  }, [currentList, updateProduct]);
+
+  const handleDeleteProductFromSheet = useCallback((productId: string) => {
+    if (currentList) {
+      deleteProduct(currentList.id, productId);
+    }
+  }, [currentList, deleteProduct]);
 
   const handleCompleteList = () => {
     if (currentList) {
@@ -152,6 +207,7 @@ export function ShoppingListScreen() {
           currency={state.settings.currency}
           onToggle={() => handleToggleProduct(item.id)}
           onPress={() => handleProductPress(item)}
+          onLongPress={() => handleProductLongPress(item)}
           onDelete={() => handleDeleteProduct(item.id)}
         />
       ))}
@@ -232,22 +288,65 @@ export function ShoppingListScreen() {
 
       {/* Items List */}
       {currentList.items.length === 0 ? (
-        <View style={styles.emptyListState}>
-          <View style={[styles.emptyListIconContainer, { backgroundColor: theme.colors.surfaceVariant }]}>
-            <Ionicons name="basket-outline" size={40} color={theme.colors.outline} />
+        <View style={styles.emptyListContainer}>
+          {/* Input Field for Empty List */}
+          <View style={styles.inputContainer}>
+            <ItemInputField
+              onAddItem={handleAddItem}
+              recentItems={recentItems}
+              defaultUnit={state.settings.defaultUnit}
+              placeholder="Add item... (e.g., 3 bananas, milk 1l)"
+            />
           </View>
-          <Text variant="titleMedium" style={[styles.emptyListTitle, { color: theme.colors.onSurface }]}>
-            Your List is Empty
-          </Text>
-          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>
-            Tap the + button to add your first item
-          </Text>
+          
+          {/* Recently Used Section for Empty List */}
+          {recentItems.length > 0 && (
+            <RecentlyUsedSection
+              items={recentItems}
+              onSelectItem={handleQuickAddFromRecent}
+              maxVisibleItems={3}
+            />
+          )}
+          
+          <View style={styles.emptyListState}>
+            <View style={[styles.emptyListIconContainer, { backgroundColor: theme.colors.surfaceVariant }]}>
+              <Ionicons name="basket-outline" size={40} color={theme.colors.outline} />
+            </View>
+            <Text variant="titleMedium" style={[styles.emptyListTitle, { color: theme.colors.onSurface }]}>
+              Your List is Empty
+            </Text>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>
+              Use the input field above to add items
+            </Text>
+          </View>
         </View>
       ) : (
         <FlatList
           data={groupedUnchecked}
           keyExtractor={([category]) => category}
           renderItem={({ item }) => renderCategorySection(item)}
+          ListHeaderComponent={
+            <>
+              {/* Item Input Field */}
+              <View style={styles.inputContainer}>
+                <ItemInputField
+                  onAddItem={handleAddItem}
+                  recentItems={recentItems}
+                  defaultUnit={state.settings.defaultUnit}
+                  placeholder="Add item... (e.g., 3 bananas, milk 1l)"
+                />
+              </View>
+              
+              {/* Recently Used Section */}
+              {recentItems.length > 0 && (
+                <RecentlyUsedSection
+                  items={recentItems}
+                  onSelectItem={handleQuickAddFromRecent}
+                  maxVisibleItems={3}
+                />
+              )}
+            </>
+          }
           ListFooterComponent={
             checkedItems.length > 0 ? (
               <View style={styles.checkedSection}>
@@ -288,6 +387,7 @@ export function ShoppingListScreen() {
                       currency={state.settings.currency}
                       onToggle={() => handleToggleProduct(item.id)}
                       onPress={() => handleProductPress(item)}
+                      onLongPress={() => handleProductLongPress(item)}
                       onDelete={() => handleDeleteProduct(item.id)}
                     />
                   ))}
@@ -299,20 +399,14 @@ export function ShoppingListScreen() {
         />
       )}
 
-      {/* FAB */}
-      <FAB
-        icon="plus"
-        style={[styles.fab, { backgroundColor: theme.colors.primary }]}
-        color="#fff"
-        onPress={() => setShowAddModal(true)}
-      />
-
-      {/* Add Product Modal */}
-      <AddProductModal
-        visible={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onAdd={handleAddProduct}
-        defaultUnit={state.settings.defaultUnit}
+      {/* Edit Item Bottom Sheet */}
+      <EditItemBottomSheet
+        visible={editingProduct !== null}
+        product={editingProduct}
+        onClose={() => setEditingProduct(null)}
+        onSave={handleSaveProduct}
+        onDelete={handleDeleteProductFromSheet}
+        currency={state.settings.currency}
       />
     </SafeAreaView>
   );
@@ -332,6 +426,7 @@ const styles = StyleSheet.create({
   headerMain: {
     flex: 1,
     marginRight: 12,
+    minWidth: 0, // Allow text to shrink properly
   },
   title: {
     fontWeight: '700',
@@ -340,6 +435,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    flexShrink: 0, // Prevent icons from shrinking
   },
   storeButton: {
     borderRadius: 10,
@@ -440,6 +536,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 40,
   },
+  emptyListContainer: {
+    flex: 1,
+  },
   emptyListIconContainer: {
     width: 80,
     height: 80,
@@ -452,22 +551,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontWeight: '600',
   },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    borderRadius: 16,
-    elevation: 4,
-    ...Platform.select({
-      web: {
-        boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
-      },
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-      },
-    }),
+  inputContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    zIndex: 100,
   },
 });

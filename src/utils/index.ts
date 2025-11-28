@@ -285,3 +285,83 @@ export const groupByCategoryWithStoreOrder = <T extends { category: string }>(
   
   return sorted;
 };
+
+// Parse item input to extract name, quantity, and unit
+export interface ParsedItemInput {
+  name: string;
+  quantity: number;
+  unit: string;
+  category: string;
+  autofilled: boolean;
+}
+
+// Unit patterns for parsing (regex patterns for common units)
+// Using (?:\s|$) instead of \b to prevent matching unit-like substrings in words
+const UNIT_PATTERNS: Array<{ pattern: RegExp; unit: string }> = [
+  { pattern: /(\d+(?:\.\d+)?)\s*kg(?:\s|$)/i, unit: 'kg' },
+  { pattern: /(\d+(?:\.\d+)?)\s*g(?:\s|$)/i, unit: 'g' },
+  { pattern: /(\d+(?:\.\d+)?)\s*lb(?:\s|$)/i, unit: 'lb' },
+  { pattern: /(\d+(?:\.\d+)?)\s*oz(?:\s|$)/i, unit: 'oz' },
+  { pattern: /(\d+(?:\.\d+)?)\s*l(?:\s|$)/i, unit: 'L' },
+  { pattern: /(\d+(?:\.\d+)?)\s*ml(?:\s|$)/i, unit: 'ml' },
+  { pattern: /(\d+)\s*(?:pcs?|pieces?|x)(?:\s|$)/i, unit: 'pcs' },
+  { pattern: /(\d+)\s*(?:pack(?:s)?|pk)(?:\s|$)/i, unit: 'pack' },
+  { pattern: /(\d+)\s*(?:bottle(?:s)?)(?:\s|$)/i, unit: 'bottle' },
+  { pattern: /(\d+)\s*(?:can(?:s)?)(?:\s|$)/i, unit: 'can' },
+  { pattern: /(\d+)\s*(?:box(?:es)?)(?:\s|$)/i, unit: 'box' },
+  { pattern: /(\d+)\s*(?:bag(?:s)?)(?:\s|$)/i, unit: 'bag' },
+];
+
+export const parseItemInput = (input: string, defaultUnit: string = 'pcs'): ParsedItemInput => {
+  let text = input.trim();
+  let quantity = 1;
+  let unit = defaultUnit;
+  let autofilled = false;
+  
+  // Check for quantity + unit patterns (e.g., "milk 1l", "tomatoes 500g")
+  for (const { pattern, unit: matchedUnit } of UNIT_PATTERNS) {
+    const match = text.match(pattern);
+    if (match) {
+      quantity = parseFloat(match[1]);
+      unit = matchedUnit;
+      text = text.replace(pattern, '').trim();
+      autofilled = true;
+      break;
+    }
+  }
+  
+  // Check for leading quantity (e.g., "3 bananas")
+  if (!autofilled) {
+    const leadingNumberMatch = text.match(/^(\d+)\s+(.+)$/);
+    if (leadingNumberMatch) {
+      quantity = parseInt(leadingNumberMatch[1], 10);
+      text = leadingNumberMatch[2];
+      autofilled = true;
+    } else {
+      // Only check trailing if leading didn't match
+      const trailingNumberMatch = text.match(/^(.+?)\s+(\d+)$/);
+      if (trailingNumberMatch) {
+        quantity = parseInt(trailingNumberMatch[2], 10);
+        text = trailingNumberMatch[1];
+        autofilled = true;
+      }
+    }
+  }
+  
+  // Clean up the name - capitalize every word
+  const name = text
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+  
+  // Auto-suggest category
+  const category = suggestCategory(name) || 'Other';
+  
+  return {
+    name,
+    quantity,
+    unit,
+    category,
+    autofilled,
+  };
+};

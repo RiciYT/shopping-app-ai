@@ -11,6 +11,7 @@ interface ProductItemProps {
   currency?: string;
   onToggle: () => void;
   onPress: () => void;
+  onLongPress?: () => void;
   onDelete?: () => void;
 }
 
@@ -19,6 +20,7 @@ export function ProductItem({
   currency = 'USD',
   onToggle,
   onPress,
+  onLongPress,
   onDelete,
 }: ProductItemProps) {
   const theme = useTheme();
@@ -93,6 +95,8 @@ export function ProductItem({
     >
       <TouchableRipple
         onPress={onPress}
+        onLongPress={onLongPress}
+        delayLongPress={400}
         style={[
           styles.container,
           { 

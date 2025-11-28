@@ -11,7 +11,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Text,
-  FAB,
   Portal,
   Modal,
   TextInput,
@@ -28,33 +27,37 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useApp } from '../context/AppContext';
-import { ProductItem, AddProductModal } from '../components';
+import { ProductItem, ItemInputField, EditItemBottomSheet, RecentlyUsedSection } from '../components';
 import { ShoppingList, Product, RootStackParamList } from '../types';
-import { formatPrice, calculateTotalPrice, groupByCategoryWithStoreOrder, StoreName, getCategoryColor, getCategoryIcon, COMMON_PRODUCTS } from '../utils';
+import { formatPrice, calculateTotalPrice, groupByCategoryWithStoreOrder, StoreName, getCategoryColor, getCategoryIcon, COMMON_PRODUCTS, ParsedItemInput } from '../utils';
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const STORES: StoreName[] = ['Custom', 'Lidl', 'Coop', 'Migros'];
 
+// Default product values for suggestions
+const DEFAULT_QUANTITY = 1;
+
 export function HomeScreen() {
   const navigation = useNavigation<HomeNavigationProp>();
-  const { state, addList, deleteList, dispatch, addProduct, getCurrentList, toggleProduct, deleteProduct, completeList } = useApp();
+  const { state, addList, deleteList, dispatch, addProduct, updateProduct, getCurrentList, toggleProduct, deleteProduct, completeList } = useApp();
   const [showNewListModal, setShowNewListModal] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [showListMenu, setShowListMenu] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
   const [showChecked, setShowChecked] = useState(true);
   const [selectedStore, setSelectedStore] = useState<StoreName>('Custom');
   const [showStoreMenu, setShowStoreMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const theme = useTheme();
 
   const currentList = getCurrentList();
   const activeLists = state.shoppingLists.filter(list => !list.isArchived);
+  const defaultUnit = state.settings.defaultUnit;
 
   // Get recently used items based on lastUsedAt and timesUsed
-  const recentlyUsedItems = useMemo(() => {
-    const itemMap: Record<string, { name: string; category: string; lastUsedAt?: Date; timesUsed: number }> = {};
+  const recentlyUsedItems = useMemo((): Product[] => {
+    const itemMap: Record<string, Product & { timesUsedCount: number }> = {};
     
     // Collect all items from all lists (including archived) with usage stats
     state.shoppingLists.forEach(list => {
@@ -62,17 +65,15 @@ export function HomeScreen() {
         const key = item.name.toLowerCase();
         if (!itemMap[key]) {
           itemMap[key] = { 
-            name: item.name, 
-            category: item.category, 
-            lastUsedAt: item.lastUsedAt, 
-            timesUsed: item.timesUsed || 0 
+            ...item,
+            timesUsedCount: item.timesUsed || 0 
           };
         } else {
           // Update with most recent usage
           if (item.lastUsedAt && (!itemMap[key].lastUsedAt || item.lastUsedAt > itemMap[key].lastUsedAt)) {
-            itemMap[key].lastUsedAt = item.lastUsedAt;
+            itemMap[key] = { ...item, timesUsedCount: itemMap[key].timesUsedCount };
           }
-          itemMap[key].timesUsed = Math.max(itemMap[key].timesUsed, item.timesUsed || 0);
+          itemMap[key].timesUsedCount = Math.max(itemMap[key].timesUsedCount, item.timesUsed || 0);
         }
       });
     });
@@ -84,13 +85,12 @@ export function HomeScreen() {
         const completedDate = list.completedAt || list.updatedAt;
         if (!itemMap[key]) {
           itemMap[key] = { 
-            name: item.name, 
-            category: item.category, 
-            lastUsedAt: completedDate, 
-            timesUsed: 1 
+            ...item,
+            lastUsedAt: completedDate,
+            timesUsedCount: 1 
           };
         } else {
-          itemMap[key].timesUsed += 1;
+          itemMap[key].timesUsedCount += 1;
           // Update lastUsedAt if this completion is more recent
           if (completedDate && (!itemMap[key].lastUsedAt || completedDate > itemMap[key].lastUsedAt)) {
             itemMap[key].lastUsedAt = completedDate;
@@ -99,18 +99,27 @@ export function HomeScreen() {
       });
     });
 
-    // If no history, show common products
+    // If no history, create Product objects from common products
     if (Object.keys(itemMap).length < 6) {
       COMMON_PRODUCTS.slice(0, 8).forEach(product => {
         const key = product.name.toLowerCase();
         if (!itemMap[key]) {
-          itemMap[key] = { ...product, timesUsed: 0 };
+          itemMap[key] = { 
+            id: `suggestion-${key}`,
+            name: product.name,
+            category: product.category,
+            quantity: DEFAULT_QUANTITY,
+            unit: defaultUnit,
+            isChecked: false,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            timesUsedCount: 0
+          };
         }
       });
     }
 
-    // Sort by lastUsedAt (most recent) and timesUsed (most used)
-    // Pre-compute timestamps for efficient sorting
+    // Sort by timesUsed and lastUsedAt
     const itemsWithTimestamp = Object.values(itemMap).map(item => ({
       ...item,
       lastUsedTimestamp: item.lastUsedAt ? new Date(item.lastUsedAt).getTime() : 0
@@ -119,12 +128,13 @@ export function HomeScreen() {
     return itemsWithTimestamp
       .sort((a, b) => {
         // First by timesUsed
-        if (b.timesUsed !== a.timesUsed) return b.timesUsed - a.timesUsed;
+        if (b.timesUsedCount !== a.timesUsedCount) return b.timesUsedCount - a.timesUsedCount;
         // Then by lastUsedAt (using pre-computed timestamps)
         return b.lastUsedTimestamp - a.lastUsedTimestamp;
       })
-      .slice(0, 8);
-  }, [state.shoppingLists]);
+      .slice(0, 8)
+      .map(({ timesUsedCount, lastUsedTimestamp, ...product }) => product as Product);
+  }, [state.shoppingLists, defaultUnit]);
 
   const { uncheckedItems, checkedItems } = useMemo(() => {
     if (!currentList) return { uncheckedItems: [], checkedItems: [] };
@@ -212,15 +222,96 @@ export function HomeScreen() {
     }
   };
 
-  const handleAddProduct = (productData: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
+  // Handler for the new ItemInputField
+  const handleAddItem = useCallback((parsedItem: ParsedItemInput) => {
     if (currentList) {
       addProduct(currentList.id, {
-        ...productData,
+        name: parsedItem.name,
+        category: parsedItem.category,
+        quantity: parsedItem.quantity,
+        unit: parsedItem.unit,
+        isChecked: false,
+        autofilled: parsedItem.autofilled,
         lastUsedAt: new Date(),
         timesUsed: 1,
       });
+    } else if (activeLists.length > 0) {
+      const firstList = activeLists[0];
+      dispatch({ type: 'SET_CURRENT_LIST', payload: firstList.id });
+      addProduct(firstList.id, {
+        name: parsedItem.name,
+        category: parsedItem.category,
+        quantity: parsedItem.quantity,
+        unit: parsedItem.unit,
+        isChecked: false,
+        autofilled: parsedItem.autofilled,
+        lastUsedAt: new Date(),
+        timesUsed: 1,
+      });
+    } else {
+      const newList = addList('Shopping List');
+      if (newList?.id) {
+        addProduct(newList.id, {
+          name: parsedItem.name,
+          category: parsedItem.category,
+          quantity: parsedItem.quantity,
+          unit: parsedItem.unit,
+          isChecked: false,
+          autofilled: parsedItem.autofilled,
+          lastUsedAt: new Date(),
+          timesUsed: 1,
+        });
+      } else {
+        Alert.alert('Error', 'Failed to create a new shopping list. Please try again.');
+      }
     }
-  };
+  }, [currentList, activeLists, addProduct, addList, dispatch]);
+
+  // Handler for quick add from recently used (for the new RecentlyUsedSection)
+  const handleQuickAddFromRecent = useCallback((item: Product) => {
+    if (currentList) {
+      addProduct(currentList.id, {
+        name: item.name,
+        category: item.category,
+        quantity: item.quantity,
+        unit: item.unit,
+        isChecked: false,
+        store: item.store,
+        notes: item.notes,
+        lastUsedAt: new Date(),
+        timesUsed: 1,
+      });
+    } else if (activeLists.length > 0) {
+      const firstList = activeLists[0];
+      dispatch({ type: 'SET_CURRENT_LIST', payload: firstList.id });
+      addProduct(firstList.id, {
+        name: item.name,
+        category: item.category,
+        quantity: item.quantity,
+        unit: item.unit,
+        isChecked: false,
+        store: item.store,
+        notes: item.notes,
+        lastUsedAt: new Date(),
+        timesUsed: 1,
+      });
+    } else {
+      const newList = addList('Shopping List');
+      if (newList?.id) {
+        addProduct(newList.id, {
+          name: item.name,
+          category: item.category,
+          quantity: item.quantity,
+          unit: item.unit,
+          isChecked: false,
+          store: item.store,
+          notes: item.notes,
+          lastUsedAt: new Date(),
+          timesUsed: 1,
+        });
+      }
+    }
+  }, [currentList, activeLists, addProduct, addList, dispatch]);
 
   const handleToggleProduct = useCallback((productId: string) => {
     if (currentList) {
@@ -250,6 +341,22 @@ export function HomeScreen() {
       navigation.navigate('ProductDetails', { product, listId: currentList.id });
     }
   }, [currentList, navigation]);
+
+  const handleProductLongPress = useCallback((product: Product) => {
+    setEditingProduct(product);
+  }, []);
+
+  const handleSaveProduct = useCallback((product: Product) => {
+    if (currentList) {
+      updateProduct(currentList.id, product);
+    }
+  }, [currentList, updateProduct]);
+
+  const handleDeleteProductFromSheet = useCallback((productId: string) => {
+    if (currentList) {
+      deleteProduct(currentList.id, productId);
+    }
+  }, [currentList, deleteProduct]);
 
   const handleCompleteList = () => {
     if (currentList) {
@@ -296,6 +403,7 @@ export function HomeScreen() {
           currency={state.settings.currency}
           onToggle={() => handleToggleProduct(item.id)}
           onPress={() => handleProductPress(item)}
+          onLongPress={() => handleProductLongPress(item)}
           onDelete={() => handleDeleteProduct(item.id)}
         />
       ))}
@@ -338,7 +446,7 @@ export function HomeScreen() {
             Your List is Empty
           </Text>
           <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>
-            Tap the + button to add your first item
+            Use the input field above to add items
           </Text>
         </View>
       );
@@ -390,6 +498,7 @@ export function HomeScreen() {
                     currency={state.settings.currency}
                     onToggle={() => handleToggleProduct(item.id)}
                     onPress={() => handleProductPress(item)}
+                    onLongPress={() => handleProductLongPress(item)}
                     onDelete={() => handleDeleteProduct(item.id)}
                   />
                 ))}
@@ -477,6 +586,18 @@ export function HomeScreen() {
         </View>
       </View>
 
+      {/* Item Input Field - Bring-style unified input */}
+      {currentList && (
+        <View style={styles.inputContainer}>
+          <ItemInputField
+            onAddItem={handleAddItem}
+            recentItems={recentlyUsedItems}
+            defaultUnit={state.settings.defaultUnit}
+            placeholder="Add item... (e.g., 3 bananas, milk 1l)"
+          />
+        </View>
+      )}
+
       {/* Progress Bar (when list is active) */}
       {currentList && currentList.items.length > 0 && (
         <View style={styles.progressContainer}>
@@ -544,33 +665,13 @@ export function HomeScreen() {
         />
       )}
 
-      {/* Recently Used Section */}
+      {/* Recently Used Section - max 3 items with Show All */}
       {currentList && recentlyUsedItems.length > 0 && (
-        <View style={styles.recentlyUsedSection}>
-          <Text variant="titleSmall" style={[styles.sectionTitle, { color: theme.colors.onSurfaceVariant }]}>
-            RECENTLY USED
-          </Text>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.recentlyUsedScroll}
-          >
-            {recentlyUsedItems.map((item, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[styles.recentItem, { backgroundColor: theme.colors.surface }]}
-                onPress={() => handleQuickAdd(item)}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.recentItemDot, { backgroundColor: getCategoryColor(item.category) }]} />
-                <Text variant="labelMedium" numberOfLines={1} style={{ color: theme.colors.onSurface }}>
-                  {item.name}
-                </Text>
-                <Ionicons name="add" size={16} color={theme.colors.primary} />
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+        <RecentlyUsedSection
+          items={recentlyUsedItems}
+          onSelectItem={handleQuickAddFromRecent}
+          maxVisibleItems={3}
+        />
       )}
 
       {/* Store Sort Button (when list has items) */}
@@ -613,22 +714,14 @@ export function HomeScreen() {
       {/* Main Content */}
       {renderListContent()}
 
-      {/* FAB for adding products */}
-      {currentList && (
-        <FAB
-          icon="plus"
-          style={[styles.fab, { backgroundColor: theme.colors.primary }]}
-          color="#fff"
-          onPress={() => setShowAddModal(true)}
-        />
-      )}
-
-      {/* Add Product Modal */}
-      <AddProductModal
-        visible={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onAdd={handleAddProduct}
-        defaultUnit={state.settings.defaultUnit}
+      {/* Edit Item Bottom Sheet */}
+      <EditItemBottomSheet
+        visible={editingProduct !== null}
+        product={editingProduct}
+        onClose={() => setEditingProduct(null)}
+        onSave={handleSaveProduct}
+        onDelete={handleDeleteProductFromSheet}
+        currency={state.settings.currency}
       />
 
       {/* New List Modal */}
@@ -694,6 +787,7 @@ const styles = StyleSheet.create({
   headerLeft: {
     flex: 1,
     marginRight: 12,
+    minWidth: 0, // Allow text to shrink properly
   },
   title: {
     fontWeight: '700',
@@ -701,9 +795,15 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0, // Prevent icons from shrinking
   },
   headerButton: {
     margin: 0,
+  },
+  inputContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    zIndex: 100,
   },
   menuContent: {
     marginTop: 40,
@@ -758,44 +858,6 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     fontSize: 14,
-  },
-  recentlyUsedSection: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    paddingHorizontal: 20,
-    marginBottom: 12,
-    letterSpacing: 1,
-    fontWeight: '600',
-  },
-  recentlyUsedScroll: {
-    paddingHorizontal: 20,
-    gap: 10,
-  },
-  recentItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    gap: 8,
-    elevation: 1,
-    ...Platform.select({
-      web: {
-        boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.05)',
-      },
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-      },
-    }),
-  },
-  recentItemDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
   },
   storeMenuContainer: {
     paddingHorizontal: 20,
@@ -907,24 +969,6 @@ const styles = StyleSheet.create({
   emptyListTitle: {
     marginBottom: 8,
     fontWeight: '600',
-  },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    borderRadius: 16,
-    elevation: 4,
-    ...Platform.select({
-      web: {
-        boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
-      },
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-      },
-    }),
   },
   modalContent: {
     margin: 20,
